@@ -1,8 +1,8 @@
-// g++ -o test_folly_atomichashmap{,.cpp} -O3 -std=c++14 -I/home/chuqq/temp/folly/folly_bin/include -L/home/chuqq/temp/folly/folly_bin/lib -lfolly -lglog -ldl -ldouble-conversion -pthread 
-// 静态链接 g++ -g -O3 -std=c++14 -Ifolly_bin/include test.cpp -Lfolly_bin/lib -lfolly -static-libgcc -static-libstdc++ -Wl,-Bstatic -lglog -lgflags -ldouble-conversion -Wl,-Bdynamic -lunwind -ldl -ldouble-conversion -pthread
-// g++ -g -O3 -std=c++14 -Ifolly_bin/include test.cpp -Lfolly_bin/lib -lfolly  -static-libstdc++ -Wl,-Bstatic -ldouble-conversion -lglog -lgflags -lunwind -llzma -Wl,-Bdynamic -ldl  -pthread
+// . /home/chuqq/temp/tbb2018_20180312oss/bin/tbbvars.sh intel64 linux auto_tbbroot
+// g++ -o test_tbb_concurrent_hash_map{,.cpp} -O3 -ltbb -pthread 
 
-#include <folly/AtomicHashMap.h>
+// #include <folly/AtomicHashMap.h>
+#include "tbb/concurrent_hash_map.h"
 
 #include <utility>
 
@@ -21,7 +21,7 @@
 #define MAX_NODE 100000
 #define TTL 660000
 
-using folly::AtomicHashMap;
+// using folly::AtomicHashMap;
 
 #include <time.h>
 #include <unistd.h>
@@ -138,7 +138,9 @@ void convert_int2string(const uint8_t *array, int len, char *str)
 //     return PLEASE_REMOVE_HASH_NODE;
 // }
 
-AtomicHashMap<uint64_t, device_t*> gMap(100000000);
+// AtomicHashMap<uint64_t, device_t*> gMap(100000000);
+typedef tbb::concurrent_hash_map<uint64_t, device_t*> DeviceMap;
+DeviceMap gMap;
 
 int init_device_token_dict()
 {
@@ -170,7 +172,11 @@ int add_device_token()
         device->port = (uint16_t)i;
         device->unused = 0;
         // int ret = atomic_hash_add(dict_device, (device_key_t *)device, sizeof(device_key_t), device, TTL, NULL, NULL);
-        gMap.insert(std::make_pair(*(uint64_t *)device, device));
+        // gMap.insert(std::make_pair(*(uint64_t *)device, device));
+        DeviceMap::accessor accessor;
+        if (gMap.insert(accessor, *(uint64_t *)device)) {
+            accessor->second = device;
+        }
         // if (ret != 0)
         // {
         //     return ret;
@@ -208,12 +214,16 @@ void *loop_get_device_token(void *arg)
         // {
         //     failed++;
         // }
-        device_t *ret = gMap.find(*(uint64_t *) &device_key)->second;
-        if (ret->ip != device_key.ip || ret->port != device_key.port)
-        {
+        // device_t *ret = gMap.find(*(uint64_t *) &device_key)->second;
+        DeviceMap::const_accessor accessor;
+        if (!gMap.find(accessor, *(uint64_t *) &device_key) || accessor->second->ip != device_key.ip || accessor->second->port != device_key.port) {
             printf("not match\n");
-            failed++;
         }
+        // if (ret->ip != device_key.ip || ret->port != device_key.port)
+        // {
+        //     printf("not match\n");
+        //     failed++;
+        // }
     }
     printf("atomic hash get total %d, failed %d.\n", total, failed);
 }
@@ -247,24 +257,9 @@ int main()
     getchar();
 }
 
-// old atomic_hash:
-// $ ./a.out 
-// init success
-// atomic hash get total 1000000, failed 0.
-// atomic hash get total 1000000, failed 0.
-// atomic hash get total 1000000, failed 0.
-// atomic hash get total 1000000, failed 0.
-// atomic hash get total 1000000, failed 0.
-// atomic hash get total 1000000, failed 0.
-// atomic hash get total 1000000, failed 0.
-// atomic hash get total 1000000, failed 0.
-// atomic hash get total 1000000, failed 0.
-// atomic hash get total 1000000, failed 0.
-// threads finish: elapsed: 284007168 ns; avg: 284 ns/op
-
 /*
 env: chuqq@hp
-chuqq@chuqq-hp:~/temp/code_c/c++/20180307_folly_atomichashmap$ ./test_folly_atomichashmap 
+chuqq@chuqq-hp:~/temp/code_c/c++/20180307_folly_atomichashmap$ ./test_tbb_concurrent_hash_map 
 init success
 atomic hash get total 10000000, failed 0.
 atomic hash get total 10000000, failed 0.
@@ -276,5 +271,7 @@ atomic hash get total 10000000, failed 0.
 atomic hash get total 10000000, failed 0.
 atomic hash get total 10000000, failed 0.
 atomic hash get total 10000000, failed 0.
-threads finish: elapsed: 604011008 ns; avg: 6 ns/op
+threads finish: elapsed: 3188057600 ns; avg: 31 ns/op
+
+结论：folly的AtomicHashMap大约是6ns/op。但是内存要多一些。
 */
