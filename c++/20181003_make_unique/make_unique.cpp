@@ -46,6 +46,10 @@ int main()
 
     MyClass my;
     std::cout << (my.v.get() == nullptr) << "\n";
+
+
+    auto a(std::move(my.v));
+    std::cout << (my.v.get() == nullptr) << "\n";
 }
 /*
 1、一共6个构造和析构
