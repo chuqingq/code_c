@@ -21,4 +21,14 @@ int main(int argc,char* argv[]) {
 /*
 INFO, WARNING, ERROR, FATAL、分别对应数字
 0, 1, 2, 3
+
+使用参数有三种方式：
+1、环境变量，例如
+    export GLOG_log_dir=log
+    export GLOG_minloglevel=1
+    export GLOG_stderrthreshold=1
+    export GLOG_v=3
+    export GLOG_max_log_size=1
+2、命令行参数： ./a.out --log_dir=log --minloglevel=1
+3、直接在代码中修改FLAGS_log_dir变量
 */
