@@ -26,7 +26,7 @@ typedef struct {
     int buf_size;
 
     int write_pos; // 正在写入的位置
-    volatile int read_pos; // 最近写入成功的位置，即消费者需要读取的位置
+    int read_pos; // 最近写入成功的位置，即消费者需要读取的位置
 
     int nconsumers[ENTRY_NUM_MAX];
     uint8_t buf[0]; // capacity*buf_size

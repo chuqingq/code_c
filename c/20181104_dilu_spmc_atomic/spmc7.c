@@ -14,6 +14,9 @@
 // bool __sync_bool_compare_and_swap (type *ptr, type oldval type newval, ...)
 #define CAS(ptr, oldval, newval) __sync_bool_compare_and_swap(ptr, oldval, newval)
 
+// https://gcc.gnu.org/onlinedocs/gcc/_005f_005fatomic-Builtins.html
+#define LOAD(ptr)  __sync_sub_and_fetch(ptr, 0)
+
 void *spmc_init(int key, int entry_num, int buf_size, int is_producer) {
     if (entry_num <= 0 || entry_num > ENTRY_NUM_MAX || buf_size <= 0) {
         fprintf(stderr, "ERROR entry_num[%d] or buf_size[%d] is invalid\n", entry_num, buf_size);
@@ -95,7 +98,8 @@ void producer_alloc_end(spmc_t *spmc, const uint8_t *buf) {
 
     // 写入成功后设置read_pos
     while (1) {
-        int old = spmc->read_pos;
+        // int old = spmc->read_pos;
+        int old = LOAD(&spmc->read_pos);
         if (CAS(&spmc->read_pos, old, i)) {
             return;
         }
@@ -110,7 +114,8 @@ uint8_t *consumer_alloc(void *s) {
 
     while (1) {
         // 应该读取的位置
-        int i = spmc->read_pos;
+        // int i = spmc->read_pos;
+        int i = LOAD(&spmc->read_pos);
 
         int old = spmc->nconsumers[i];
         if (old < 0) { // 已被生产者占用
@@ -204,7 +209,7 @@ int main_c() {
 }
 
 int main() {
-    // return main_p();
-    return main_c();
+    return main_p();
+    // return main_c();
 }
 // #endif
