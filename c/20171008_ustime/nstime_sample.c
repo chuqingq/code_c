@@ -40,10 +40,12 @@ t2: 1508460780526245120
 
 # test on MPBr:
 
-~/work/codeeveryday/c/20171008_ustime $ gcc nstime_sample.c
-~/work/codeeveryday/c/20171008_ustime $ ./a.out
-time diff: 1005163000
-t1: 1507427455285188000, t2: 1507427456290351000, t3: 1507427455285188000
+chuqq@cqqmbpr /V/w/t/c/c/20171008_ustime> ./a.out
+time diff1: 0
+time diff: 1005202176
+t1: 1549430510568316928
+t3: 1549430510568316928
+t2: 1549430511573519104
 
 # test on ubuntu:
 
