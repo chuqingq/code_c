@@ -19,10 +19,13 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 }
 
 /*
-编译：
+0.先安装libfuzz，包含在clang中：
+sudo apt install clang
+
+1.编译：
 chuqq@cqq-dilu /m/e/t/c/c/20190215_libfuzz> clang -g -fsanitize=address,fuzzer test_libfuzz.c  -o test_libfuzz
 
-运行：
+2.运行：
 chuqq@cqq-dilu /m/e/t/c/c/20190215_libfuzz> ./test_libfuzz
 INFO: Seed: 2370746163
 INFO: Loaded 1 modules   (7 inline 8-bit counters): 7 [0x787f60, 0x787f67),
@@ -115,7 +118,7 @@ artifact_prefix='./'; Test unit written to ./crash-0eb8e4ed029b774d80f2b66408203
 Base64: RlVa
 ⏎
 
-分析上述错误信息，注意到“READ of size 1 at 0x6020000c16b3 thread T0 #0 0x54a825”是非法读取的地方，通过gdb查看代码：
+3.分析上述错误信息，注意到“READ of size 1 at 0x6020000c16b3 thread T0 #0 0x54a825”是非法读取的地方，通过gdb查看代码：
 (gdb) list *0x54a825
 0x54a825 is in VulnerableFunction1 (test_libfuzz.c:10).
 5         int result = 0;
@@ -130,7 +133,7 @@ Base64: RlVa
 14      }
 (gdb)
 
-第10行越界读取。
+结论：第10行越界读取。
 
 */
 
