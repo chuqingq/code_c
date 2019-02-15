@@ -1,4 +1,4 @@
-// 验证mutex会轮询，导致资源浪费
+// 验证mutex是否会轮询，导致资源浪费
 
 #include <thread>
 #include <iostream>
