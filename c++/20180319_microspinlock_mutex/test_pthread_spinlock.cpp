@@ -1,4 +1,4 @@
-// g++ test_pthread_spinlock.cpp -std=c++14 -O3 -Ifolly_bin/include -Lfolly_bin/lib -lfolly -lglog -ldl -ldouble-conversion -pthread
+// g++ test_pthread_spinlock.cpp -o test_pthread_spinlock -std=c++14 -O3 -pthread
 
 #include <iostream>
 #include <thread>

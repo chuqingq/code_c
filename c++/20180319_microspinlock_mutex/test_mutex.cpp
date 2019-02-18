@@ -1,12 +1,12 @@
-// g++ test_mutex.cpp -std=c++14 -O3 -Ifolly_bin/include -Lfolly_bin/lib -lfolly -lglog -ldl -ldouble-conversion -pthread
+// g++ test_mutex.cpp -o test_mutex -std=c++14 -O3 -pthread
 
 #include <iostream>
 #include <thread>
 #include <chrono>
 #include <mutex>
 
-#include <folly/synchronization/MicroSpinLock.h>
-using namespace folly;
+// #include <folly/synchronization/MicroSpinLock.h>
+// using namespace folly;
 
 int main() {
     std::mutex lock;
