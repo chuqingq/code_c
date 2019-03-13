@@ -70,5 +70,6 @@ Thread 1 "a.out" received signal SIGSEGV, Segmentation fault.
 #2  0x000000000040112c in main ()
 (gdb)
 
-貌似是c++的thread的bug。
+参考： https://stackoverflow.com/questions/35116327/when-g-static-link-pthread-cause-segmentation-fault-why
+
 */
