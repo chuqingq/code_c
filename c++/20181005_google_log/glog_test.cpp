@@ -4,18 +4,50 @@
  
 int main(int argc,char* argv[]) {
     // If glog is used to parse the command line 
-    google::ParseCommandLineFlags(&argc, &argv, true);
- 
+    // google::ParseCommandLineFlags(&argc, &argv, true);
+
+    // 日志目录
+    // FLAGS_log_dir = "./log";
+
+    // 大小限制
+    // FLAGS_max_log_size = 1;
+
+    // 只输出到标准错误，不打印到日志文件
+    FLAGS_logtostderr = true;
+
     // Initialize Google's logging library.
     google::InitGoogleLogging(argv[0]);
  
-    // FLAGS_log_dir = "./log";
+    google::SetStderrLogging(google::GLOG_INFO);
  
     LOG(INFO) << "hello world";
     LOG(ERROR) << "this is an error log";
     LOG(WARNING) << "this is a warn log";
     // LOG(FATAL) << "this is a fatal log";
  
+    google::ShutdownGoogleLogging();
+
+    // 日志目录
+    FLAGS_log_dir = "./log2";
+
+    // 大小限制
+    FLAGS_max_log_size = 1;
+
+    // 只输出到标准错误，不打印到日志文件
+    FLAGS_logtostderr = true;
+
+    // Initialize Google's logging library.
+    google::InitGoogleLogging(argv[0]);
+
+    FLAGS_log_dir = "./log";
+
+    LOG(INFO) << "hello world";
+    LOG(ERROR) << "this is an error log";
+    LOG(WARNING) << "this is a warn log";
+    // LOG(FATAL) << "this is a fatal log";
+
+    google::ShutdownGoogleLogging();
+
     return 0;
 }
 /*
