@@ -25,11 +25,13 @@ void clone_example();
 // chuqq 让trace生效，才能打印出源码文件名、行号、函数名等
 # define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_TRACE
 
+#define FMT_STRING_ALIAS 1
+
 #include "spdlog/spdlog.h"
 
 int main(int, char *[])
 {
-    spdlog::info("Welcome to spdlog version {}.{}.{} !", SPDLOG_VER_MAJOR, SPDLOG_VER_MINOR, SPDLOG_VER_PATCH);
+    spdlog::info("这是中文 Welcome to spdlog version {}.{}.{} {} !", SPDLOG_VER_MAJOR, SPDLOG_VER_MINOR, SPDLOG_VER_PATCH);
     spdlog::warn("Easy padding in numbers like {:08d}", 12);
     spdlog::critical("Support for int: {0:d};  hex: {0:x};  oct: {0:o}; bin: {0:b}", 42);
     spdlog::info("Support for floats {:03.2f}", 1.23456);
@@ -254,6 +256,9 @@ void android_example()
   - 严重级别过滤：支持运行时和编译时？
     logger.set_level(spdlog::level::debug);
   - 支持二进制日志？
+  - 自己的问题
+    - 参数数量如何在编译时就校验？[*** LOG ERROR ***] [2019-03-17 17:01:01] [] argument index out of range
+    - 能否同时支持%s和{}？
 
 > ./example-debug
 [2019-03-17 15:01:01.149] [info] Welcome to spdlog version 1.3.1 !
