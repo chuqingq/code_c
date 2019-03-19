@@ -19,10 +19,10 @@ typedef struct
     int capacity; // entry_capacity
     int buf_size; // 每个entry的大小
 
-    int write_pos; // 正在写入的位置
-    int read_pos;  // 最近写入成功的位置，即消费者需要读取的位置
+    int write_pos; // producer下次将要写入的位置。只有producer访问，无需原子
+    int read_pos;  // producer最近写入成功的位置，即消费者需要读取的位置。是producer和consumer同步的关键
 
-    int nconsumers[ENTRY_NUM_MAX]; // 每个entry有多少个consumer在读，-1表示正在被producer写入
+    int nconsumers[ENTRY_NUM_MAX]; // 每个entry有多少个consumer在读，-1表示正在被producer写入。不用于同步，可以用relaxed
     uint8_t buf[0];                // capacity*buf_size
 } spmc_t;
 
@@ -103,7 +103,7 @@ uint8_t *producer_alloc(void *s)
         //     continue;
         // }
 
-        if (CAS(&spmc->nconsumers[i], 0, -1)) // TODO 这里只需relaxed，无需barrier
+        if (CAS(&spmc->nconsumers[i], 0, -1)) // TODO 这里只需relaxed，无需barrier // TODO 这里应该派出掉i是read_pos的可能
         {
             if (spmc->size <= i)
             {
@@ -191,7 +191,7 @@ void consumer_alloc_end(spmc_t *spmc, const uint8_t *buf)
     //     }
     // }
     // 直接原子减一即可
-    __atomic_fetch_sub(&spmc->nconsumers[i], 1, __ATOMIC_RELEASE);
+    __atomic_fetch_sub(&spmc->nconsumers[i], 1, __ATOMIC_RELAXED);
 }
 
 /////////////////////////// 测试 ////////////////////////////////////////////////////////
