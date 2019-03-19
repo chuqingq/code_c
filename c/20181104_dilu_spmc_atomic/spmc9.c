@@ -160,7 +160,8 @@ uint8_t *consumer_alloc(void *s)
         // int i = LOAD(&spmc->read_pos);
         int i = __atomic_load_n(&spmc->read_pos, __ATOMIC_ACQUIRE);
 
-        int old = spmc->nconsumers[i];
+        // int old = spmc->nconsumers[i];
+        int old = __atomic_load_n(&spmc->nconsumers[i], __ATOMIC_RELAXED);
         if (old < 0)
         { // 已被生产者占用
             continue;
@@ -357,5 +358,25 @@ consumer:
 producer: 8855508
 consumer: 8836318, diff: 16714363, same: 1965960
 Job 1, './producer &' has ended
+
+spmc9:
+Ubuntu@chuqq-matebook13 /m/d/w/t/c/c/20181104_dilu_spmc_atomic> ./producer & ;./consumer
+count: 20000000
+producer:
+count: 20000000
+consumer:
+producer: 4800935
+consumer: 4748528, diff: 12006000, same: 1881689
+Job 1, './producer &' has ended
+Ubuntu@chuqq-matebook13 /m/d/w/t/c/c/20181104_dilu_spmc_atomic> ./producer & ;./consumer
+count: 20000000
+producer:
+count: 20000000
+consumer:
+consumer: 4487629, diff: 12010354, same: 2026945
+producer: 4508854
+Job 1, './producer &' has ended
+
+
 
 */
