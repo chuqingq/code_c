@@ -26,12 +26,11 @@ typedef struct
     uint8_t buf[0];                // capacity*buf_size
 } spmc_t;
 
-// http://gcc.gnu.org/onlinedocs/gcc-4.1.2/gcc/Atomic-Builtins.html
 // bool __sync_bool_compare_and_swap (type *ptr, type oldval type newval, ...)
-#define CAS(ptr, oldval, newval) __sync_bool_compare_and_swap(ptr, oldval, newval)
+// #define CAS(ptr, oldval, newval) __sync_bool_compare_and_swap(ptr, oldval, newval)
 
 // https://gcc.gnu.org/onlinedocs/gcc/_005f_005fatomic-Builtins.html
-#define LOAD(ptr) __sync_sub_and_fetch(ptr, 0)
+// #define LOAD(ptr) __sync_sub_and_fetch(ptr, 0)
 
 void *spmc_init(int key, int entry_num, int buf_size, int is_producer)
 {
@@ -103,7 +102,9 @@ uint8_t *producer_alloc(void *s)
         //     continue;
         // }
 
-        if (CAS(&spmc->nconsumers[i], 0, -1)) // TODO 这里只需relaxed，无需barrier // TODO 这里应该派出掉i是read_pos的可能
+        // if (CAS(&spmc->nconsumers[i], 0, -1)) // TODO 这里只需relaxed，无需barrier // TODO 这里应该派出掉i是read_pos的可能
+        int val = 0;
+        if (__atomic_compare_exchange_n(&spmc->nconsumers[i], &val, -1, 0, __ATOMIC_RELAXED, __ATOMIC_RELAXED))
         {
             if (spmc->size <= i)
             {
@@ -125,14 +126,8 @@ void producer_alloc_end(spmc_t *spmc, const uint8_t *buf)
     // 计算entry的位置
     int i = (buf - spmc->buf) / spmc->buf_size;
 
-    // 释放写锁，不应该失败
-    // if (!CAS(&spmc->nconsumers[i], -1, 0)) // TODO 这里直接设置成0即可，无需barrier
-    // {
-    //     printf("ERROR unexpected\n");
-    //     exit(-1);
-    // }
 #ifdef DEBUG
-    printf("debug\n");
+    // printf("debug\n");
     // 大约0.3秒的影响：1.7到2.0
     int old = __atomic_exchange_n(&spmc->nconsumers[i], 0, __ATOMIC_RELAXED);
     if (old != -1) // DEBUG
@@ -144,16 +139,6 @@ void producer_alloc_end(spmc_t *spmc, const uint8_t *buf)
     __atomic_store_n(&spmc->nconsumers[i], 0, __ATOMIC_RELAXED);
 #endif
 
-    // 写入成功后设置read_pos
-    // while (1)
-    // {
-    //     // int old = spmc->read_pos;
-    //     int old = LOAD(&spmc->read_pos);
-    //     if (CAS(&spmc->read_pos, old, i))
-    //     {
-    //         return;
-    //     }
-    // }
     __atomic_store_n(&spmc->read_pos, i, __ATOMIC_RELEASE); // 此处优化针对producer单独运行降低0.5秒
 }
 
@@ -167,18 +152,17 @@ uint8_t *consumer_alloc(void *s)
     while (1)
     {
         // 应该读取的位置
-        // int i = spmc->read_pos;
-        // int i = LOAD(&spmc->read_pos);
         int i = __atomic_load_n(&spmc->read_pos, __ATOMIC_ACQUIRE);
 
-        // int old = spmc->nconsumers[i];
         int old = __atomic_load_n(&spmc->nconsumers[i], __ATOMIC_RELAXED);
         if (old < 0)
-        { // 已被生产者占用
+        { 
+            // 已被生产者占用
             continue;
         }
 
-        if (CAS(&spmc->nconsumers[i], old, old + 1)) // TODO 这里可以是relaxed，无需barrier
+        // if (CAS(&spmc->nconsumers[i], old, old + 1)) // TODO 这里可以是relaxed，无需barrier
+        if (__atomic_compare_exchange_n(&spmc->nconsumers[i], &old, old+1, 0, __ATOMIC_RELAXED, __ATOMIC_RELAXED))
         {
             uint8_t *buf = spmc->buf + i * spmc->buf_size;
             return buf;
@@ -193,14 +177,7 @@ uint8_t *consumer_alloc(void *s)
 void consumer_alloc_end(spmc_t *spmc, const uint8_t *buf)
 {
     int i = (buf - spmc->buf) / spmc->buf_size;
-    // while (1)
-    // {
-    //     int old = spmc->nconsumers[i];
-    //     if (CAS(&spmc->nconsumers[i], old, old - 1))
-    //     {
-    //         return;
-    //     }
-    // }
+    
     // 直接原子减一即可
     int new = __atomic_sub_fetch(&spmc->nconsumers[i], 1, __ATOMIC_RELAXED);
     if (new < 0) // 
@@ -392,7 +369,5 @@ consumer:
 consumer: 4487629, diff: 12010354, same: 2026945
 producer: 4508854
 Job 1, './producer &' has ended
-
-
 
 */
