@@ -32,4 +32,6 @@ chuqq@chuqq-hp:~/temp/codeeveryday/c++/20180319_microspinlock_mutex$ g++ test_pt
 chuqq@chuqq-hp:~/temp/codeeveryday/c++/20180319_microspinlock_mutex$ ./a.out 
 elapsed: 713 ns
 结论：经常会卡住，sleep 1秒，可能会过很久也不触发。
+
+结论2：pthread_spinlock比pthread_mutex快一倍。   https://www.xuebuyuan.com/916222.html
 */
