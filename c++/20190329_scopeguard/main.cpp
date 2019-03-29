@@ -7,6 +7,8 @@ int main()
 	{
 		int a = 123;
 		ScopeGuard sg([&]() { printf("a111 = %d\n", a); });
+		ON_SCOPE_EXIT([&]() { printf("a1112 = %d\n", a); });
+		// printf("%s\n", SCOPEGUARD_LINENAME(EXIT, __LINE__));
 		a = 456;
 	}
 

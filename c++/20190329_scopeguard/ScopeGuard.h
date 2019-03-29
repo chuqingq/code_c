@@ -8,6 +8,7 @@ class ScopeGuard
     {
     }
 
+    ScopeGuard() = delete;
     ScopeGuard(ScopeGuard const &) = delete;
     ScopeGuard &operator=(ScopeGuard const &) = delete;
 
