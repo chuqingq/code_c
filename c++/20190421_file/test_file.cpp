@@ -38,6 +38,7 @@ int main()
     std::vector<char> content;
     readFileTo("/home/chuqq/.bashrc", &content);
     cout << content.size() << endl;
+    cout << content.data() << endl;
 
     writeFile(file + ".bak", content);
     return 0;
