@@ -1,19 +1,26 @@
-#include "deps/json/include/json.hpp"
+// 下载json.hpp
+// wget -c https://github.com/nlohmann/json/releases/download/v3.6.1/json.hpp
+
 #include <iostream>
 #include <fstream>
 #include <string>
 #include <iomanip>
 #include <cassert>
-using json = nlohmann::json;
+
 using namespace std;
 
+#include "json.hpp"
+using json = nlohmann::json;
+
 // 用find判断key是否存在，用is_string判断类型
-void test1() {
+void test1()
+{
     json j;
     j["name"] = 123;
 
     auto iter = j.find("name");
-    if (iter != j.end() && iter->is_string()) {
+    if (iter != j.end() && iter->is_string())
+    {
         cout << iter->get<string>() << endl;
     }
 
@@ -21,7 +28,8 @@ void test1() {
 }
 
 // 读写文件
-void test2() {
+void test2()
+{
     json j;
     j["name"] = 123;
 
@@ -40,8 +48,32 @@ void test2() {
     cout << i << endl;
 }
 
-int main() {
+// 字符串
+void test3()
+{
+    json j = json::parse("{\"name\":\"value\", \"name1\":\"value1\"}");
+    cout << j["name"].get<std::string>() << endl;
+
+    // j = {{"name", "value"}, {"name1", "value1"}};
+
+    cout << "dump: " << j.dump(0) << endl;
+    cout << "dump: " << j.dump(1) << endl;
+}
+
+void test4()
+{
+    json j = {"name1", "nam2"};
+    for (auto const &i : j)
+    {
+        cout << i << endl;
+    }
+}
+
+int main()
+{
     test1();
     test2();
+    test3();
+    test4();
     return 0;
 }
