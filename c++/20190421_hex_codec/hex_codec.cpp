@@ -22,7 +22,7 @@ void hexEncode(const std::vector<char> &src, std::vector<char> *dst)
     }
     // cout << endl;
 
-    (*dst)[src.size() * 2 + 1] = '\0';
+    (*dst)[src.size() * 2] = '\0';
 }
 
 // 把hex字符转成decimal数字
