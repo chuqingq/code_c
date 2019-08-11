@@ -17,15 +17,29 @@ constexpr int check(const T *str)
     }
 }
 
-int main()
+void success()
 {
     int r = check("234");
-    printf("%d\n", r);
+    printf("check success: %d\n", r);
+}
+
+void error()
+{
+    string a = string("123") + "456";
+    const char *str = a.c_str();
+    int r = check(str);
+    printf("check error: %d\n", r);
+}
+
+int main()
+{
+    success();
+    error();
     return 0;
 }
 
 /*
-g++ test.cpp
-./a.out
-3
+$ g++ check_in_compile_time.cpp
+check success: 3
+check error: 6
  */
