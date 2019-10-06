@@ -1,2 +1,3 @@
 # code_c
-code c/c++ everyday.
+
+My c/c++ codes.
