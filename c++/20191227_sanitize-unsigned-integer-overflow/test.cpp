@@ -21,5 +21,8 @@ int main()
 ➜  temp ./a.out
 test.cpp:14:17: runtime error: unsigned integer overflow: 0 - 1 cannot be represented in type 'unsigned int'
 4294967295
+
+supress
+https://stackoverflow.com/questions/33351891/how-to-suppress-some-unsigned-integer-overflow-errors-from-ubsan
 */
 
