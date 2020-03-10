@@ -5,42 +5,37 @@
 
 using namespace std;
 
-template <typename T>
-constexpr int check(const T *str)
+constexpr bool check(const char *str)
 {
     for (int i = 0;; i++)
     {
         if (str[i] == '\0')
         {
-            return i;
+            return i > 3;
         }
     }
 }
 
 // output function that requires a compile-time constant, for testing
-template <int n>
-struct constN
+template <bool b>
+struct myassert
 {
-    constN() { std::cout << n << '\n'; }
+};
+
+template <>
+struct myassert<true>
+{
 };
 
 void success()
 {
-    // int r = check("234");
-    // printf("check success: %d\n", r);
-    constN<check("123")> a;
+	myassert<check("123")> m;
 }
 
 void error()
 {
-    // string a = string("123") + "456";
-    // const char *str = a.c_str();
-    // // int r = check(str);
-    // // printf("check error: %d\n", r);
-    // constN<check(str)> a;
-
     string a = string("123");
-    constN<check(a.c_str())> a;
+    myassert<check(a.c_str())> m;
 }
 
 int main()
