@@ -3,22 +3,37 @@
 #include <iostream>
 using namespace std;
 
+#undef NDEBUG
+#include <cassert>
+
 int main()
 {
-    cout << "0000" << endl;
-    {
-        ScopeGuard a([] { cout << "1111" << endl; });
-    }
-    cout << "2222" << endl;
+    int i = 0;
 
-    int i = 1;
+    // 普通用法
     {
-        ScopeGuard b([&] {
-            i = 2;
-            cout << "3333" << endl;
+        ScopeGuard a([&] {
+            i++;
         });
     }
-    cout << "4444: " << i << endl;
+    assert(i == 1);
+
+    // 匿名
+    {
+        ScopeGuard([&] {
+            i++;
+        });
+    }
+    assert(i == 2);
+
+    // dismiss
+    {
+        ScopeGuard c([&] {
+            i = 3;
+        });
+        c.dismiss();
+    }
+    assert(i == 2);
 
     return 0;
 }

@@ -3,11 +3,6 @@
 #include <cstdlib>    // std::size_t
 #include <functional> // std::function
 
-// ScopeGuard makeScopeGuard(std::function<void()> &&ptr)
-// {
-//     return ScopeGuard
-// }
-
 class ScopeGuard
 {
 public:
@@ -30,7 +25,7 @@ public:
     }
 
 private:
-    ScopeGuard(ScopeGuard const &) = delete;
+    ScopeGuard(const ScopeGuard &) = delete;
     void *operator new(std::size_t) = delete;
     void operator delete(void *) = delete;
 
