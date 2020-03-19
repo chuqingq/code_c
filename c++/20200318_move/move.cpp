@@ -1,46 +1,44 @@
 #include <iostream>
+using namespace std;
 
 class B
 {
 public:
-    B() :s(10), ptr(new int[s])
+    B() : s(1)
     {
-       std::cout << "default constructor" << std::endl;
-       for (int i = 0; i < s; i++)
-       {
-          ptr[i] = i;
-       }
+       std::cout << "B()" << std::endl;
     }
+    /*
     B(const B& b) :s(b.s)
     {
        std::cout << "B&b" << std::endl;
        for (int i = 0; i < s; i++)
           ptr[i] = b.ptr[i];
     }
-    B(B&& b) :s(b.s), ptr(b.ptr)
+    */
+    B(B&& b)
     {
-       std::cout << "B&& b" << std::endl;
-       b.ptr = 0;
+       std::cout << "B&& b " << std::endl;
+       b.s = 0;
+       this->s = 1;
     }
+    B& operator=(B&& b)
+    {
+	    std::cout << "operator(B&&)" << std::endl;
+	    b.s = 0;
+	    this->s = 1;
+	    return *this;
+    }
+    B& operator=(B& b) = delete;
+    B(const B& b) = delete;
+
     ~B()
     {
-       std::cout << "~B()" << std::endl;
-       if (ptr)
-          delete[] ptr;
+       std::cout << "~B() s=" << s << std::endl;
     }
-    friend  std::ostream& operator <<(std::ostream& os, B& b);
 private:
     int s;
-    int* ptr;
 };
-std::ostream& operator <<(std::ostream& os,B& b)
-{
-    os << "[ ";
-    for (int i = 0; i < b.s; i++)
-       os << b.ptr[i] << " ";
-    os << "]" << std::endl;
-    return os;
-}
 
 B&& f()//注意这里B&&
 {
@@ -62,19 +60,47 @@ B f3()
 	return std::move(t);
 }
 
+B f4()
+{
+	return B();
+}
+
 int main()
 {
  // B b0(f2());
  // B b1(f());
- B b2(f3());
+ /*
+{
+  std::cout << "before move construtor f3" << std::endl;
+  B b2(f3());
+}
+{
+  std::cout << "before move operator= f3" << std::endl;
+  B b3 = f();
+}
+*/
+ // B b1 = B();
+ /*
+ B()
+ B&& b
+ ~B() s=0
+ ~B() s=1
+ */
+ B b4 = f4();
+ cout << "end" << endl;
+
  return 0 ;
 }
 
 /*
+$ g++ move.cpp -fno-elide-constructors
+// ... warnings
 $ ./a.out
-default constructor
+B()
 B&& b
-~B()
-~B()
+~B() s=0
+B&& b
+~B() s=0
+end
+~B() s=1
 */
-
