@@ -74,6 +74,7 @@ int main() {
     return 0;
 }
 /*
+~/temp $ g++ dyn.cpp -g -fsanitize=address
 ~/temp $ ./a.out 
 alloca 0x7ffe4b154d20
 0x7ffe4b154d20
