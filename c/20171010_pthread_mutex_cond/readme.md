@@ -23,3 +23,8 @@ thread start: 0
 after unlock
 diff ns: 1887
 
+# matebook 13
+
+pthread_mutex_cond: 70~80us
+pthread_spinlock: 2us
+
