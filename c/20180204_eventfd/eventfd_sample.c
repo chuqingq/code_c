@@ -10,7 +10,7 @@ long long int starttime;
 
 static unsigned long long nstime(void) {
     struct timespec ts;
-    clock_gettime(CLOCK_REALTIME_COARSE, &ts);
+    clock_gettime(CLOCK_REALTIME, &ts);
     return ((unsigned long long)ts.tv_sec)*1e9 + ts.tv_nsec;
 }
 
@@ -33,7 +33,7 @@ void *threadFunc(void *arg) //线程函数
         {
             printf("唤醒成功\n");
         }
-        sleep(3);
+        // sleep(3);
     }
 }
 
@@ -54,7 +54,7 @@ void *threadFunc2(void *arg) //线程函数
             printf("唤醒成功\n");
         }
 
-        sleep(3);
+       //  sleep(3);
     }
 }
 
@@ -75,10 +75,18 @@ int main(void)
         printf("线程创建失败\n");
     }
 
+    /*
     if (pthread_create(&tid2, NULL, threadFunc2, NULL) < 0)
     {
         printf("线程创建失败\n");
     }
+	*/
+
+        struct sched_param param;
+        param.sched_priority = 10;
+        int policy = SCHED_FIFO;
+        ret = pthread_setschedparam(tid, policy, &param);
+        if (ret != 0) printf("pthread_setschedparam error\n"); 
 
     while (1)
     {
