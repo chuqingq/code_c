@@ -23,6 +23,8 @@
 // 共享状态
 class State {
 public:
+    State();
+
     int write_pos; // producer下次将要写入的位置。只有producer访问，无需原子
     int read_pos;  // producer最近写入成功的位置，即消费者需要读取的位置。是producer和consumer同步的关键
 
@@ -30,12 +32,24 @@ public:
     pthread_rwlock_t rwlocks[ENTRY_NUM_MAX];
 };
 
+State::State(): write_pos(0), read_pos(0) {
+    for (int i = 0; i < ENTRY_NUM_MAX/*sizeof(rwlocks)/sizeof(rwlocks[0])*/; i++)
+    {
+        pthread_rwlock_init(&rwlocks[i], NULL);
+    }
+}
+
+
 class ShmBlock {
 public:
     explicit ShmBlock(const std::string &name, int block_num, int block_size)
         : shm_name_(name),
           block_num_(block_num),
-          block_size_(block_size) {}// AcquireBlockToWrite时加载共享内存可写
+          block_size_(block_size),
+          cap_(sizeof(State) + block_num * block_size),
+          managed_shm_(nullptr),
+          state_(nullptr),
+          buffer_(NULL) {}// AcquireBlockToWrite时加载共享内存可写
     ~ShmBlock();
 
     void *AcquireBlockToWrite();
@@ -71,7 +85,7 @@ bool ShmBlock::OpenOrCreate() {
     return true;
   }
 
-  cap_ = sizeof(State) + block_num_ * block_size_;
+  // cap_ = sizeof(State) + block_num_ * block_size_;
 
   // create managed_shm_
   int fd = shm_open(shm_name_.c_str(), O_RDWR | O_CREAT | O_EXCL, 0644);
@@ -116,7 +130,7 @@ bool ShmBlock::OpenOrCreate() {
   }
 
   buffer_ = (char *)managed_shm_ + sizeof(State);
-
+  std::cout << "OpenOrCreate success" << std::endl;
   return true;
 }
 
@@ -159,25 +173,31 @@ bool ShmBlock::OpenOnly() {
     return false;
   }
 
+  buffer_ = (char *)managed_shm_ + sizeof(State);
+
   return true;
 }
 
 
 ShmBlock::~ShmBlock(){
-  if (shm_unlink(shm_name_.c_str()) < 0) {
-    AERROR << "shm_unlink failed: " << strerror(errno);
-  }
+    std::cout << "shmunlink(): " << shm_name_ << std::endl;
+    if (shm_unlink(shm_name_.c_str()) < 0) {
+        AERROR << "shm_unlink failed: " << strerror(errno);
+    }
+    // TODO 要搞成引用计数，确保最后一个释放的会删除文件
 }
 
 // 生产者
 
 // 生产者申请第一个能够写入的entry
 void *ShmBlock::AcquireBlockToWrite() {
-    if (managed_shm_ == NULL || !OpenOrCreate()) {
+    // std::cout << "begin AcquireBlockToWrite" << std::endl;
+    if (managed_shm_ == NULL && !OpenOrCreate()) {
         fprintf(stderr, "OpenOrCreate error");
         return NULL;
     }
 
+    // state_-td::cout << state_->write_pos << std::endl;
     for (int i = state_->write_pos;; i = (i + 1) % block_num_)
     {
         // if (__atomic_compare_exchange_n(&state_->nconsumers[i], &val, -1, 0, __ATOMIC_RELAXED, __ATOMIC_RELAXED))
@@ -225,6 +245,11 @@ void ShmBlock::ReleaseWrittenBlock(void *buf)
 // 对申请的entry的buf只读
 void *ShmBlock::AcquireBlockToRead()
 {
+    if (managed_shm_ == NULL && !OpenOnly()) {
+        AERROR << "failed to open shared memory, can't read now.";
+        return NULL;
+    }
+
     while (1)
     {
         // 应该读取的位置
@@ -309,6 +334,7 @@ int main_p()
     }
 
     printf("producer: %llu\n", ustime() - start);
+    sleep(3);
     return 0;
 }
 
