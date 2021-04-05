@@ -8,6 +8,7 @@
 
 #include <iostream>
 #include <string>
+#include <atomic>
 
 // #include <sys/shm.h>
 #include <fcntl.h>
@@ -20,6 +21,9 @@
 
 #define ENTRY_NUM_MAX 64
 
+const int kRWLockFree = 0;
+const int kWriteExclusive = -1;
+
 // 共享状态
 class State {
 public:
@@ -28,8 +32,10 @@ public:
     int write_pos; // producer下次将要写入的位置。只有producer访问，无需原子
     int read_pos;  // producer最近写入成功的位置，即消费者需要读取的位置。是producer和consumer同步的关键
 
+    std::atomic<int> refcount{0};
     // int nconsumers[ENTRY_NUM_MAX]; // 每个entry有多少个consumer在读，-1表示正在被producer写入。不用于同步，可以用relaxed
     pthread_rwlock_t rwlocks[ENTRY_NUM_MAX];
+    std::atomic<int> locks[ENTRY_NUM_MAX]{};
 };
 
 State::State(): write_pos(0), read_pos(0) {
@@ -46,10 +52,7 @@ public:
         : shm_name_(name),
           block_num_(block_num),
           block_size_(block_size),
-          cap_(sizeof(State) + block_num * block_size),
-          managed_shm_(nullptr),
-          state_(nullptr),
-          buffer_(NULL) {}// AcquireBlockToWrite时加载共享内存可写
+          cap_(sizeof(State) + block_num * block_size) {}// AcquireBlockToWrite时加载共享内存可写
     ~ShmBlock();
 
     void *AcquireBlockToWrite();
@@ -67,9 +70,9 @@ private:
     int block_size_; // 每个entry的大小
 
     int cap_;     // 在使用的entry数量，只增不减，<=cap。目的是避免consumer读到从没写过的entry
-    void *managed_shm_; // 内存映射地址
-    State* state_;
-    char *buffer_;
+    void *managed_shm_{nullptr}; // 内存映射地址
+    State* state_{nullptr};
+    char *buffer_{NULL};
 };
 
 // bool __sync_bool_compare_and_swap (type *ptr, type oldval type newval, ...)
@@ -129,6 +132,8 @@ bool ShmBlock::OpenOrCreate() {
     return false;
   }
 
+  state_->refcount.fetch_add(1); // TODO 放在State中
+
   buffer_ = (char *)managed_shm_ + sizeof(State);
   std::cout << "OpenOrCreate success" << std::endl;
   return true;
@@ -173,6 +178,7 @@ bool ShmBlock::OpenOnly() {
     return false;
   }
 
+  state_->refcount.fetch_add(1);
   buffer_ = (char *)managed_shm_ + sizeof(State);
 
   return true;
@@ -180,11 +186,14 @@ bool ShmBlock::OpenOnly() {
 
 
 ShmBlock::~ShmBlock(){
-    std::cout << "shmunlink(): " << shm_name_ << std::endl;
-    if (shm_unlink(shm_name_.c_str()) < 0) {
-        AERROR << "shm_unlink failed: " << strerror(errno);
+    int rc = state_->refcount.fetch_sub(1);
+    if (rc == 1) {
+        std::cout << "shmunlink(): " << shm_name_ << std::endl;
+        if (shm_unlink(shm_name_.c_str()) < 0) {
+            AERROR << "shm_unlink failed: " << strerror(errno);
+        }
+        // TODO 要搞成引用计数，确保最后一个释放的会删除文件
     }
-    // TODO 要搞成引用计数，确保最后一个释放的会删除文件
 }
 
 // 生产者
