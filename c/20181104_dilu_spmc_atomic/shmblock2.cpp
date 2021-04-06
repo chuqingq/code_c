@@ -1,6 +1,6 @@
 // g++ -g -lrt -o producer -DPRODUCER shmblock2.cpp -pthread -Wall; g++ -g -lrt -o consumer shmblock2.cpp -pthread -Wall
 // ./producer &; ./consumer
-// 改为pthread实现
+
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
@@ -10,7 +10,6 @@
 #include <string>
 #include <atomic>
 
-// #include <sys/shm.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -21,30 +20,74 @@
 
 #define ENTRY_NUM_MAX 64
 
-const int kRWLockFree = 0;
-const int kWriteExclusive = -1;
 
 // 共享状态
 class State {
 public:
-    State();
+    explicit State(int block_size, int block_num)
+      : block_size_(block_size)
+      , block_num_(block_num) {}
+    int LockForWrite() {
+      for (int i = write_pos;; i = (i + 1) % block_num_) {
+          int rw_lock_free = kRWLockFree;
+          if (locks[i].compare_exchange_weak(rw_lock_free,
+                                             kWriteExclusive,
+                                             std::memory_order_acq_rel,
+                                             std::memory_order_relaxed)) {
+              return i;
+          }
+      }
 
-    int write_pos; // producer下次将要写入的位置。只有producer访问，无需原子
-    int read_pos;  // producer最近写入成功的位置，即消费者需要读取的位置。是producer和consumer同步的关键
+      // unreachable
+      return -1;
+    }
+    void ReleaseWriteLock(int i) { locks[i].fetch_add(1); read_pos.store(i); }
+
+    int LockForRead() {
+        while (1) { // TODO 未考虑重试次数，一直读，直到读到有效内容
+            int i = read_pos.load();
+            if (i < 0) {
+              continue; // 未曾写入过
+            }
+
+            int lock_num = locks[i].load();
+            if (i < kRWLockFree) {
+              continue;
+            }
+            if (locks[i].compare_exchange_weak(lock_num,
+                                               lock_num+1,
+                                               std::memory_order_acq_rel,
+                                               std::memory_order_relaxed)) {
+                return i;
+            }
+        }
+
+        // unreachable
+        return -1;
+    }
+    void ReleaseReadLock(int i) { locks[i].fetch_sub(1); }
+
+    void IncreaseRefCount() { refcount.fetch_add(1); };
+    int DecreaseRefCount() { return refcount.fetch_sub(1); }
+
+    bool checkValid(int block_size, int block_num) const {
+        return block_size_ == block_size && block_num_ == block_num;
+    }
+private:
+    const static int kRWLockFree = 0;
+    const static int kWriteExclusive = -1; 
+    // State();
+    int block_size_; // TODO 校验
+    int block_num_;
+
+    int write_pos{0}; // producer下次将要写入的位置。只有producer访问，当前是单生产者模式，无需原子
+    std::atomic<int> read_pos{-1};  // producer最近写入成功的位置，即消费者需要读取的位置。是producer和consumer同步的关键
 
     std::atomic<int> refcount{0};
     // int nconsumers[ENTRY_NUM_MAX]; // 每个entry有多少个consumer在读，-1表示正在被producer写入。不用于同步，可以用relaxed
-    pthread_rwlock_t rwlocks[ENTRY_NUM_MAX];
+    // pthread_rwlock_t rwlocks[ENTRY_NUM_MAX];
     std::atomic<int> locks[ENTRY_NUM_MAX]{};
 };
-
-State::State(): write_pos(0), read_pos(0) {
-    for (int i = 0; i < ENTRY_NUM_MAX/*sizeof(rwlocks)/sizeof(rwlocks[0])*/; i++)
-    {
-        pthread_rwlock_init(&rwlocks[i], NULL);
-    }
-}
-
 
 class ShmBlock {
 public:
@@ -52,7 +95,7 @@ public:
         : shm_name_(name),
           block_num_(block_num),
           block_size_(block_size),
-          cap_(sizeof(State) + block_num * block_size) {}// AcquireBlockToWrite时加载共享内存可写
+          cap_(sizeof(State) + block_num * block_size) {}// TODO reader需要和共享内存中匹配
     ~ShmBlock();
 
     void *AcquireBlockToWrite();
@@ -123,7 +166,7 @@ bool ShmBlock::OpenOrCreate() {
   close(fd);
 
   // create field state_
-  state_ = new (managed_shm_) State();
+  state_ = new (managed_shm_) State(block_size_, block_num_);
   if (state_ == nullptr) {
     AERROR << "create state failed.";
     munmap(managed_shm_, cap_);
@@ -132,7 +175,7 @@ bool ShmBlock::OpenOrCreate() {
     return false;
   }
 
-  state_->refcount.fetch_add(1); // TODO 放在State中
+  state_->IncreaseRefCount();
 
   buffer_ = (char *)managed_shm_ + sizeof(State);
   std::cout << "OpenOrCreate success" << std::endl;
@@ -178,7 +221,14 @@ bool ShmBlock::OpenOnly() {
     return false;
   }
 
-  state_->refcount.fetch_add(1);
+  // check block_size_ and block_num_
+  if (!state->CheckValid(block_size_, block_num_)) {
+    AERROR << "openonly check state invalid" << std::endl;
+    // TODO 资源释放
+    return false;
+  }
+
+  state_->IncreaseRefCount();
   buffer_ = (char *)managed_shm_ + sizeof(State);
 
   return true;
@@ -186,7 +236,7 @@ bool ShmBlock::OpenOnly() {
 
 
 ShmBlock::~ShmBlock(){
-    int rc = state_->refcount.fetch_sub(1);
+    int rc = state_->DecreaseRefCount();
     if (rc == 1) {
         std::cout << "shmunlink(): " << shm_name_ << std::endl;
         if (shm_unlink(shm_name_.c_str()) < 0) {
@@ -196,9 +246,6 @@ ShmBlock::~ShmBlock(){
     }
 }
 
-// 生产者
-
-// 生产者申请第一个能够写入的entry
 void *ShmBlock::AcquireBlockToWrite() {
     // std::cout << "begin AcquireBlockToWrite" << std::endl;
     if (managed_shm_ == NULL && !OpenOrCreate()) {
@@ -206,24 +253,8 @@ void *ShmBlock::AcquireBlockToWrite() {
         return NULL;
     }
 
-    // state_-td::cout << state_->write_pos << std::endl;
-    for (int i = state_->write_pos;; i = (i + 1) % block_num_)
-    {
-        // if (__atomic_compare_exchange_n(&state_->nconsumers[i], &val, -1, 0, __ATOMIC_RELAXED, __ATOMIC_RELAXED))
-        if (!pthread_rwlock_tryrdlock(&state_->rwlocks[i]))
-        {
-            // if (state_->size <= i) // TODO size？？
-            // {
-            //     state_->size = i + 1;
-            // }
-            char *buf = buffer_ + i * block_size_;
-            state_->write_pos = (i + 1) % block_num_; // 下次就从下一个位置开始尝试写入
-            return buf;
-        }
-    }
-
-    // unreachable
-    return NULL;
+    int i = state_->LockForWrite();
+    return buffer_ + i * block_size_;
 }
 
 // 生产者写入后释放写锁
@@ -231,22 +262,7 @@ void ShmBlock::ReleaseWrittenBlock(void *buf)
 {
     // 计算entry的位置
     int i = ((char *)buf - buffer_) / block_size_;
-
-#ifdef DEBUG
-    // printf("debug\n");
-    // 大约0.3秒的影响：1.7到2.0
-    int old = __atomic_exchange_n(&spmc->nconsumers[i], 0, __ATOMIC_RELAXED);
-    if (old != -1) // DEBUG
-    {
-        printf("ERROR ReleaseWrittenBlock unexpected: old nconsumers not -1\n");
-        exit(-1);
-    }
-#else
-    // __atomic_store_n(&spmc->nconsumers[i], 0, __ATOMIC_RELAXED);
-    pthread_rwlock_unlock(&state_->rwlocks[i]);
-#endif
-
-    __atomic_store_n(&state_->read_pos, i, __ATOMIC_RELEASE); // 此处优化针对producer单独运行降低0.5秒
+    state_->ReleaseWriteLock(i);
 }
 
 // 消费者
@@ -259,44 +275,15 @@ void *ShmBlock::AcquireBlockToRead()
         return NULL;
     }
 
-    while (1)
-    {
-        // 应该读取的位置
-        int i = __atomic_load_n(&state_->read_pos, __ATOMIC_ACQUIRE);
-
-        // int old = __atomic_load_n(&spmc->nconsumers[i], __ATOMIC_RELAXED);
-        // if (old < 0)
-        // { 
-        //     // 已被生产者占用
-        //     continue;
-        // }
-
-        // if (CAS(&spmc->nconsumers[i], old, old + 1)) // TODO 这里可以是relaxed，无需barrier
-        // if (__atomic_compare_exchange_n(&spmc->nconsumers[i], &old, old+1, 0, __ATOMIC_RELAXED, __ATOMIC_RELAXED))
-        if (!pthread_rwlock_tryrdlock(&state_->rwlocks[i]))
-        {
-            char *buf = buffer_ + i * block_size_;
-            return buf;
-        }
-    }
-
-    // unreachable
-    return NULL;
+    int i = state_->LockForRead();
+    return buffer_ + i * block_size_;
 }
 
 // 读取完成后解锁
 void ShmBlock::ReleaseReadBlock(void *buf)
 {
     int i = ((char *)buf - buffer_) / block_size_;
-    
-    // 直接原子减一即可
-    // int new = __atomic_sub_fetch(&spmc->nconsumers[i], 1, __ATOMIC_RELAXED);
-    // if (new < 0) // 
-    // {
-    //     printf("ERROR ReleaseReadBlock unexpected: new nconsumers < 0\n");
-    //     exit(-1);
-    // }
-    pthread_rwlock_unlock(&state_->rwlocks[i]);
+    state_->ReleaseReadLock(i);
 }
 
 /////////////////////////// 测试 ////////////////////////////////////////////////////////
