@@ -30,9 +30,9 @@ public:
       , block_num_(block_num) {}
 
     int LockForWrite() {
-      for (int i = write_pos;; i = (i + 1) % block_num_) {
+      for (int i = write_pos_;; i = (i + 1) % block_num_) {
           int rw_lock_free = kRWLockFree;
-          if (locks[i].compare_exchange_weak(rw_lock_free,
+          if (locks_[i].compare_exchange_weak(rw_lock_free,
                                              kWriteExclusive,
                                              std::memory_order_acq_rel,
                                              std::memory_order_relaxed)) {
@@ -43,24 +43,24 @@ public:
       // unreachable
       return -1;
     }
-    void ReleaseWriteLock(int i) { locks[i].fetch_add(1); read_pos.store(i, std::memory_order_release); }
+    void ReleaseWriteLock(int i) { locks_[i].fetch_add(1); read_pos_.store(i, std::memory_order_release); }
 
     int LockForRead() {
         while (1) { // TODO 未考虑重试次数，一直读，直到读到有效内容
-            int i = read_pos.load(std::memory_order_acquire); // 这里使用内存排序，提升明显
+            int i = read_pos_.load(std::memory_order_acquire); // 这里使用内存排序，提升明显
             if (i < 0) {
               // 未曾写入过
-              AERROR << "read_pos < 0" << std::endl;
+              AERROR << "read_pos_ < 0" << std::endl;
               continue;
             }
 
-            int lock_num = locks[i].load();
+            int lock_num = locks_[i].load();
             if (i < kRWLockFree) {
               // 正在写
-              AERROR << "LockForRead read_pos < kRWLockFree" << std::endl;
+              AERROR << "LockForRead read_pos_ < kRWLockFree" << std::endl;
               continue;
             }
-            if (locks[i].compare_exchange_weak(lock_num,
+            if (locks_[i].compare_exchange_weak(lock_num,
                                                lock_num+1,
                                                std::memory_order_acq_rel,
                                                std::memory_order_relaxed)) {
@@ -71,10 +71,10 @@ public:
         // unreachable
         return -1;
     }
-    void ReleaseReadLock(int i) { locks[i].fetch_sub(1); }
+    void ReleaseReadLock(int i) { locks_[i].fetch_sub(1); }
 
-    void IncreaseRefCount() { refcount.fetch_add(1); };
-    int DecreaseRefCount() { return refcount.fetch_sub(1); }
+    void IncreaseRefCount() { refcount_.fetch_add(1); };
+    int DecreaseRefCount() { return refcount_.fetch_sub(1); }
 
     bool CheckValid(int block_size, int block_num) const {
         return block_size_ == block_size && block_num_ == block_num;
@@ -86,11 +86,11 @@ private:
     int block_size_; // TODO 校验
     int block_num_;
 
-    int write_pos{0}; // producer下次将要写入的位置。只有producer访问，当前是单生产者模式，无需原子
-    std::atomic<int> read_pos{-1};  // producer最近写入成功的位置，即消费者需要读取的位置。是producer和consumer同步的关键
+    int write_pos_{0}; // producer下次将要写入的位置。只有producer访问，当前是单生产者模式，无需原子
+    std::atomic<int> read_pos_{-1};  // producer最近写入成功的位置，即消费者需要读取的位置。是producer和consumer同步的关键
 
-    std::atomic<int> refcount{0};
-    std::atomic<int> locks[ENTRY_NUM_MAX]{};
+    std::atomic<int> refcount_{0};
+    std::atomic<int> locks_[ENTRY_NUM_MAX]{};
 };
 
 class ShmBlock {
