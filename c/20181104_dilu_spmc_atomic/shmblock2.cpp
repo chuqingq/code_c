@@ -43,11 +43,11 @@ public:
       // unreachable
       return -1;
     }
-    void ReleaseWriteLock(int i) { locks[i].fetch_add(1); read_pos.store(i); }
+    void ReleaseWriteLock(int i) { locks[i].fetch_add(1); read_pos.store(i, std::memory_order_release); }
 
     int LockForRead() {
         while (1) { // TODO 未考虑重试次数，一直读，直到读到有效内容
-            int i = read_pos.load();
+            int i = read_pos.load(std::memory_order_acquire); // 这里使用内存排序，提升明显
             if (i < 0) {
               // 未曾写入过
               AERROR << "read_pos < 0" << std::endl;
@@ -139,9 +139,9 @@ public:
         state_->ReleaseReadLock(i);
     }
 
-private:
     bool OpenOrCreate();
     bool OpenOnly();
+private:
 
     std::string shm_name_;
     int block_num_;
@@ -254,7 +254,7 @@ bool ShmBlock::OpenOnly() {
 
   state_->IncreaseRefCount();
   buffer_ = (char *)managed_shm_ + sizeof(State);
-
+  std::cout << "OpenOnly success" << std::endl;
   return true;
 }
 
@@ -281,6 +281,7 @@ int main_p()
 {
     printf("producer: \n");
     ShmBlock spmc(kShmKey, 4, 10);
+    spmc.OpenOrCreate();
     unsigned long long start = ustime();
 
     for (int i = 0; i < count; i++)
@@ -310,6 +311,7 @@ int main_c()
 {
     printf("consumer: \n");
     ShmBlock spmc(kShmKey, 4, 10);
+    spmc.OpenOnly();
     // spmc = (spmc_t*)ShmInit(kShmKey, 4, 10, 1);
     unsigned long long start = ustime();
 
