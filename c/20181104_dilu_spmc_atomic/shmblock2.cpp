@@ -20,6 +20,7 @@
 
 #define ENTRY_NUM_MAX 64
 
+#define AERROR std::cerr
 
 // 共享状态
 class State {
@@ -27,6 +28,7 @@ public:
     explicit State(int block_size, int block_num)
       : block_size_(block_size)
       , block_num_(block_num) {}
+
     int LockForWrite() {
       for (int i = write_pos;; i = (i + 1) % block_num_) {
           int rw_lock_free = kRWLockFree;
@@ -47,11 +49,15 @@ public:
         while (1) { // TODO 未考虑重试次数，一直读，直到读到有效内容
             int i = read_pos.load();
             if (i < 0) {
-              continue; // 未曾写入过
+              // 未曾写入过
+              AERROR << "read_pos < 0" << std::endl;
+              continue;
             }
 
             int lock_num = locks[i].load();
             if (i < kRWLockFree) {
+              // 正在写
+              AERROR << "LockForRead read_pos < kRWLockFree" << std::endl;
               continue;
             }
             if (locks[i].compare_exchange_weak(lock_num,
@@ -70,13 +76,13 @@ public:
     void IncreaseRefCount() { refcount.fetch_add(1); };
     int DecreaseRefCount() { return refcount.fetch_sub(1); }
 
-    bool checkValid(int block_size, int block_num) const {
+    bool CheckValid(int block_size, int block_num) const {
         return block_size_ == block_size && block_num_ == block_num;
     }
 private:
     const static int kRWLockFree = 0;
     const static int kWriteExclusive = -1; 
-    // State();
+
     int block_size_; // TODO 校验
     int block_num_;
 
@@ -84,8 +90,6 @@ private:
     std::atomic<int> read_pos{-1};  // producer最近写入成功的位置，即消费者需要读取的位置。是producer和consumer同步的关键
 
     std::atomic<int> refcount{0};
-    // int nconsumers[ENTRY_NUM_MAX]; // 每个entry有多少个consumer在读，-1表示正在被producer写入。不用于同步，可以用relaxed
-    // pthread_rwlock_t rwlocks[ENTRY_NUM_MAX];
     std::atomic<int> locks[ENTRY_NUM_MAX]{};
 };
 
@@ -95,43 +99,65 @@ public:
         : shm_name_(name),
           block_num_(block_num),
           block_size_(block_size),
-          cap_(sizeof(State) + block_num * block_size) {}// TODO reader需要和共享内存中匹配
-    ~ShmBlock();
+          cap_(sizeof(State) + block_num * block_size) {}
 
-    void *AcquireBlockToWrite();
-    void ReleaseWrittenBlock(void *block);
+    ~ShmBlock() {
+        int rc = state_->DecreaseRefCount();
+        if (rc == 1) {
+            if (shm_unlink(shm_name_.c_str()) < 0) {
+                AERROR << "shm_unlink failed: " << strerror(errno);
+            }
+        }
+    }
 
-    void *AcquireBlockToRead();
-    void ReleaseReadBlock(void* block);
+    void *AcquireBlockToWrite() {
+        // std::cout << "begin AcquireBlockToWrite" << std::endl;
+        if (managed_shm_ == NULL && !OpenOrCreate()) {
+            fprintf(stderr, "OpenOrCreate error");
+            return NULL;
+        }
+        int i = state_->LockForWrite();
+        return buffer_ + i * block_size_;
+    }
+
+    void ReleaseWrittenBlock(void *buf) {
+        int i = ((char *)buf - buffer_) / block_size_;
+        state_->ReleaseWriteLock(i);
+    }
+
+    void *AcquireBlockToRead() {
+        if (managed_shm_ == NULL && !OpenOnly()) {
+            AERROR << "failed to open shared memory, can't read now.";
+            return NULL;
+        }
+        int i = state_->LockForRead();
+        return buffer_ + i * block_size_;
+    }
+
+    void ReleaseReadBlock(void* buf) {
+        int i = ((char *)buf - buffer_) / block_size_;
+        state_->ReleaseReadLock(i);
+    }
 
 private:
     bool OpenOrCreate();
     bool OpenOnly();
 
     std::string shm_name_;
-    int block_num_; // entry_capacity
-    int block_size_; // 每个entry的大小
+    int block_num_;
+    int block_size_;
 
-    int cap_;     // 在使用的entry数量，只增不减，<=cap。目的是避免consumer读到从没写过的entry
+    int cap_;
     void *managed_shm_{nullptr}; // 内存映射地址
     State* state_{nullptr};
     char *buffer_{NULL};
 };
 
-// bool __sync_bool_compare_and_swap (type *ptr, type oldval type newval, ...)
-// #define CAS(ptr, oldval, newval) __sync_bool_compare_and_swap(ptr, oldval, newval)
-
-// https://gcc.gnu.org/onlinedocs/gcc/_005f_005fatomic-Builtins.html
-// #define LOAD(ptr) __sync_sub_and_fetch(ptr, 0)
-
-#define AERROR std::cerr
 
 bool ShmBlock::OpenOrCreate() {
   if (managed_shm_ != NULL) {
     return true;
   }
-
-  // cap_ = sizeof(State) + block_num_ * block_size_;
 
   // create managed_shm_
   int fd = shm_open(shm_name_.c_str(), O_RDWR | O_CREAT | O_EXCL, 0644);
@@ -145,13 +171,11 @@ bool ShmBlock::OpenOrCreate() {
     }
   }
 
-
   if (ftruncate(fd, cap_) < 0) { // TODO cap_应该时off_t类型，64位是long long int
     AERROR << "ftruncate failed: " << strerror(errno);
     close(fd);
     return false;
   }
-
 
   // attach managed_shm_
   managed_shm_ = mmap(nullptr, cap_, PROT_READ | PROT_WRITE,
@@ -222,7 +246,7 @@ bool ShmBlock::OpenOnly() {
   }
 
   // check block_size_ and block_num_
-  if (!state->CheckValid(block_size_, block_num_)) {
+  if (!state_->CheckValid(block_size_, block_num_)) {
     AERROR << "openonly check state invalid" << std::endl;
     // TODO 资源释放
     return false;
@@ -232,58 +256,6 @@ bool ShmBlock::OpenOnly() {
   buffer_ = (char *)managed_shm_ + sizeof(State);
 
   return true;
-}
-
-
-ShmBlock::~ShmBlock(){
-    int rc = state_->DecreaseRefCount();
-    if (rc == 1) {
-        std::cout << "shmunlink(): " << shm_name_ << std::endl;
-        if (shm_unlink(shm_name_.c_str()) < 0) {
-            AERROR << "shm_unlink failed: " << strerror(errno);
-        }
-        // TODO 要搞成引用计数，确保最后一个释放的会删除文件
-    }
-}
-
-void *ShmBlock::AcquireBlockToWrite() {
-    // std::cout << "begin AcquireBlockToWrite" << std::endl;
-    if (managed_shm_ == NULL && !OpenOrCreate()) {
-        fprintf(stderr, "OpenOrCreate error");
-        return NULL;
-    }
-
-    int i = state_->LockForWrite();
-    return buffer_ + i * block_size_;
-}
-
-// 生产者写入后释放写锁
-void ShmBlock::ReleaseWrittenBlock(void *buf)
-{
-    // 计算entry的位置
-    int i = ((char *)buf - buffer_) / block_size_;
-    state_->ReleaseWriteLock(i);
-}
-
-// 消费者
-
-// 对申请的entry的buf只读
-void *ShmBlock::AcquireBlockToRead()
-{
-    if (managed_shm_ == NULL && !OpenOnly()) {
-        AERROR << "failed to open shared memory, can't read now.";
-        return NULL;
-    }
-
-    int i = state_->LockForRead();
-    return buffer_ + i * block_size_;
-}
-
-// 读取完成后解锁
-void ShmBlock::ReleaseReadBlock(void *buf)
-{
-    int i = ((char *)buf - buffer_) / block_size_;
-    state_->ReleaseReadLock(i);
 }
 
 /////////////////////////// 测试 ////////////////////////////////////////////////////////
