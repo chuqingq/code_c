@@ -49,7 +49,8 @@ public:
       return -1;
     }
     void ReleaseWriteLock(int i) {
-        locks_[i].fetch_add(1);
+        // locks_[i].fetch_add(1);
+        locks_[i].store(kRWLockFree);
         read_pos_.store(i, std::memory_order_relaxed);
     }
 
