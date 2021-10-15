@@ -1,7 +1,7 @@
 // gcc -o spmc12 -I. spmc_test.c -pthread -Wall
 // ./spmc12
 
-#include <spmc12.c> // TODO
+#include <spmc10.c> // TODO
 
 #include <stdint.h>
 #include <stdlib.h>

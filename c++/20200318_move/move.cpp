@@ -86,7 +86,8 @@ int main()
  ~B() s=0
  ~B() s=1
  */
- B b4 = f4();
+ B b4;
+ b4 = std::move(f4());
  cout << "end" << endl;
 
  return 0 ;
