@@ -13,7 +13,7 @@ pthread_t createSchedFifoThread(void* (*pThreadFunc)(void*), int priority)
         ret = pthread_create(&id, NULL, pThreadFunc, NULL);
         if(ret != 0)
         {
-                printf("pthread_create() error!\n");
+                perror("pthread_create() error:");
                 return 0;
         }
         param.sched_priority = priority;
@@ -21,7 +21,7 @@ pthread_t createSchedFifoThread(void* (*pThreadFunc)(void*), int priority)
         ret = pthread_setschedparam(id, policy, &param);
         if(ret != 0)
         {
-                printf("pthread_setschedparam() error!\n");
+                perror("pthread_setschedparam() error:");
                 return 0;
         }
         return id;
@@ -30,7 +30,10 @@ pthread_t createSchedFifoThread(void* (*pThreadFunc)(void*), int priority)
 void* thread1(void* arg)
 {
         sleep(1);
-        while(1);
+        while(1) {
+			printf("thread1\n");
+			sleep(1);
+		}
 }
 
 void* thread2(void *arg)
