@@ -7,7 +7,7 @@ class ScopeGuard
 {
 public:
     ScopeGuard(std::function<void()> &&ptr)
-        : ptr_(move(ptr))
+        : ptr_(std::move(ptr))
     {
     }
 
