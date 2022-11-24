@@ -1,82 +1,83 @@
-// TODO
+#pragma once
+
+#include <mutex>
+#include <condition_variable>
 
 template <typename T>
-class BoundedBlockingQueue : noncopyable
+class BoundedBlockingQueue
 {
 public:
     explicit BoundedBlockingQueue(int maxSize)
         : mutex_(),
-          notEmpty_(mutex_),
-          notFull_(mutex_),
-          queue_(maxSize)
+          notEmpty_(),
+          notFull_(),
+          queue_(maxSize) // TODO
     {
     }
 
     void put(const T &x)
     {
-        MutexLockGuard lock(mutex_);
-        while (queue_.full())
-        {
-            notFull_.wait();
-        }
+        std::unique_lock lock(mutex_);
+        notFull_.wait(lock, [&]
+                      { return !queue_.full() });
         assert(!queue_.full());
-        queue_.push_back(x);
-        notEmpty_.notify();
+        queue_.push_back(x); // TODO
+        notEmpty_.notify_one();
     }
 
-    void put(T &&x)
+    void put(T &&x) // TODO ?? std::forward()
     {
-        MutexLockGuard lock(mutex_);
-        while (queue_.full())
-        {
-            notFull_.wait();
-        }
+        std::unique_lock lock(mutex_);
+        notFull_.wait(lock, [&]
+                      { return !queue_.full() });
         assert(!queue_.full());
         queue_.push_back(std::move(x));
-        notEmpty_.notify();
+        notEmpty_.notify_one();
     }
 
     T take()
     {
-        MutexLockGuard lock(mutex_);
-        while (queue_.empty())
-        {
-            notEmpty_.wait();
-        }
+        std::unique_lock lock(mutex_);
+        notEmpty_.wait(lock, [&]
+                       { !queue_.empty() });
         assert(!queue_.empty());
         T front(std::move(queue_.front()));
         queue_.pop_front();
-        notFull_.notify();
+        notFull_.notify_one();
         return front;
     }
 
-    bool empty() const
-    {
-        MutexLockGuard lock(mutex_);
-        return queue_.empty();
-    }
+    // bool empty() const
+    // {
+    //     std::unique_lock lock(mutex_);
+    //     return queue_.empty();
+    // }
 
-    bool full() const
-    {
-        MutexLockGuard lock(mutex_);
-        return queue_.full();
-    }
+    // bool full() const
+    // {
+    //     std::unique_lock lock(mutex_);
+    //     return queue_.full();
+    // }
 
-    size_t size() const
-    {
-        MutexLockGuard lock(mutex_);
-        return queue_.size();
-    }
+    // size_t size() const
+    // {
+    //     std::unique_lock lock(mutex_);
+    //     return queue_.size();
+    // }
 
     size_t capacity() const
     {
-        MutexLockGuard lock(mutex_);
+        std::unique_lock lock(mutex_);
         return queue_.capacity();
     }
 
 private:
-    mutable MutexLock mutex_;
-    Condition notEmpty_ GUARDED_BY(mutex_);
-    Condition notFull_ GUARDED_BY(mutex_);
-    boost::circular_buffer<T> queue_ GUARDED_BY(mutex_);
+    BoundedBlockingQueue(const BoundedBlockingQueue &) = delete;
+    BoundedBlockingQueue &operator=(const BoundedBlockingQueue &) = delete;
+    BoundedBlockingQueue &operator=(BoundedBlockingQueue &&) = delete;
+
+    std::mutex mutex_;
+    std::condition_variable notEmpty_;
+    std::condition_variable notFull_;
+    // boost::circular_buffer<T> queue_ GUARDED_BY(mutex_); // TODO
 };
