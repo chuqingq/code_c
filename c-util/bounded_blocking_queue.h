@@ -72,6 +72,7 @@ static int queue_put(queue_t *q, void *item)
 
     if (q->closed)
     {
+        pthread_mutex_unlock(&q->lock);
         return -1;
     }
 
@@ -92,6 +93,7 @@ static void *queue_get(queue_t *q)
 
     if (q->closed)
     {
+        pthread_mutex_unlock(&q->lock);
         return NULL;
     }
 
