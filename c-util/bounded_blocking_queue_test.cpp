@@ -25,8 +25,7 @@ int main()
                              {
                                  std::cout << "ping error: " << i << "\n";
                              }
-                         }
-                     });
+                         } });
 
     std::thread pong([&]
                      {
@@ -39,8 +38,7 @@ int main()
                              }
                              data = i;
                              queue_put(&q2, &data);
-                         }
-                     });
+                         } });
 
     ping.join();
     pong.join();
