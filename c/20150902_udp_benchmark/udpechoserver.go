@@ -28,7 +28,7 @@ func main() {
 		if err != nil {
 			log.Printf("read error: %v\n", err)
 		}
-		log.Printf("recv %s\n", string(buf[0:n]))
+		// log.Printf("recv %s\n", string(buf[0:n]))
 
 		// time.Sleep(2 * time.Second)
 

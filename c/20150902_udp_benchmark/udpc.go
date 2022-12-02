@@ -5,16 +5,17 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"runtime"
+	"time"
 )
 
 func main() {
-	num_cores := runtime.NumCPU()
-	runtime.GOMAXPROCS(num_cores)
+	// num_cores := runtime.NumCPU()
+	// runtime.GOMAXPROCS(num_cores)
 
 	localaddr := flag.String("local", "", "local addr")
 	addr := flag.String("server", "127.0.0.1:20000", "server")
-	c := flag.Int("c", num_cores, "connections")
+	c := flag.Int("c", 1, "connections")
+	count := flag.Int("count", 10000, "count")
 	recv := flag.Bool("recv", true, "recv")
 	flag.Parse()
 
@@ -28,7 +29,7 @@ func main() {
 		log.Fatalf("addr resolve error: %v\n", err)
 	}
 
-	log.Printf("cores: %d, connections: %d, recv: %v, server: %s\n", num_cores, *c, *recv, *addr)
+	log.Printf("cores: %d, connections: %d, recv: %v, server: %s\n", 1, *c, *recv, *addr)
 
 	for i := 0; i < *c; i++ {
 		go func() {
@@ -38,7 +39,9 @@ func main() {
 			}
 
 			buf := make([]byte, 32)
-			for {
+			start := time.Now()
+
+			for i := 0; i < *count; i++{
 				_, err = conn.WriteTo(buf, server_addr)
 				if err != nil {
 					log.Printf("write error: %v\n", err)
@@ -52,8 +55,15 @@ func main() {
 					}
 				}
 			}
+
+			duration := time.Now().Sub(start)
+			log.Printf("Total: %v for %v loops; average: %v ns/loop", duration, *count, duration.Nanoseconds()/ int64(*count))
 		}()
 	}
 	var wait string
 	fmt.Scanf("%s", &wait)
 }
+
+/*
+2022/12/02 17:58:31 Total: 3.79103183s for 10000 loops; average: 379103 ns/loop
+*/
