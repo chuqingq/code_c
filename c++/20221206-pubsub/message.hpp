@@ -91,6 +91,7 @@ public:
         {
             std::lock_guard guard(publisher_->mutex_);
             stop_ = true;
+            publisher_->subscribers_.erase(this); // TODO 放到上面
         }
         publisher_->cond_.notify_all(); // TODO 想避免唤醒所有sub
 
@@ -98,7 +99,6 @@ public:
 
         {
             std::lock_guard guard(publisher_->mutex_);
-            publisher_->subscribers_.erase(this); // TODO 放到上面
         }
     }
     ~MessageSubscriber()

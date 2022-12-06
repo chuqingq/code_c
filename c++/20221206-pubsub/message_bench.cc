@@ -4,7 +4,7 @@
 #include <thread>
 #include <unistd.h>
 
-const uint64_t COUNT = 2;
+const uint64_t COUNT = 1000;
 
 static StopWatch stopwatch;
 
@@ -27,8 +27,8 @@ void RecvProc(MessageSubscriber *sub, Buffer &buffer)
     {
         stopwatch.print(COUNT);
         pub1->Stop();
-        // sub1->Stop();
         pub2->Stop();
+        // sub1->Stop();
         // sub2->Stop();
         exit(0);
     }
