@@ -28,9 +28,9 @@ void RecvProc(MessageSubscriber *sub, Buffer &buffer)
         stopwatch.print(COUNT);
         pub1->Stop();
         pub2->Stop();
-        // sub1->Stop();
-        // sub2->Stop();
-        exit(0);
+        sub1->Stop();
+        sub2->Stop();
+        // exit(0);
     }
     if (sub == sub1)
     {
@@ -73,11 +73,13 @@ int main()
     Send(pub1, 1);
 
     // wait
-    while (1)
-    {
-        // std::this_thread::sleep_for(std::chrono::milliseconds(2000));
-        sleep(2);
-    }
+    sub1->WaitStop();
+    sub2->WaitStop();
+    // while (1)
+    // {
+    //     // std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+    //     sleep(2);
+    // }
 
     return 0;
 }

@@ -94,16 +94,20 @@ public:
             publisher_->subscribers_.erase(this); // TODO 放到上面
         }
         publisher_->cond_.notify_all(); // TODO 想避免唤醒所有sub
-
-        thread_.join();
-
-        {
-            std::lock_guard guard(publisher_->mutex_);
-        }
     }
+
+    void WaitStop()
+    {
+        thread_.join();
+    }
+
     ~MessageSubscriber()
     {
-        Stop();
+        if (!stop_)
+        {
+            Stop();
+        }
+        WaitStop();
     }
 
     // typedef const std::function<void(int)> &SubCallback;
@@ -118,15 +122,15 @@ private:
             while (true)
             {
                 std::unique_lock lock(publisher_->mutex_);
+                if (stop_)
+                {
+                    std::cout << (void *)this << " sub stopped\n";
+                    return;
+                }
                 if (buffer_ == nullptr)
                 {
                     publisher_->cond_.wait(lock);
                     std::cout << (void *)this << " wait()\n";
-                    if (stop_)
-                    {
-                        std::cout << (void *)this << " sub stopped\n";
-                        return;
-                    }
                 }
                 std::shared_ptr<Buffer> buf;
                 buf.swap(buffer_);
@@ -231,8 +235,7 @@ void MessagePublisher::Stop()
             sub->stop_ = true;
         }
     }
-
     cond_.notify_all();
 
-    // delete this;
+    // delete this; // TODO 改成不一定在堆上分配
 }
