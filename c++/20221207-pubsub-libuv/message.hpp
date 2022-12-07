@@ -33,7 +33,7 @@ public:
 private:
     static inline std::shared_ptr<MessagePublisherDelegate> GetOrNew(const std::string &topic);
     inline void Stop();
-    inline int Publish(Buffer &b);
+    inline void Publish(Buffer &b);
 
 private:
     typedef std::map<std::string, std::shared_ptr<MessagePublisherDelegate>> TopicMap;
@@ -41,7 +41,7 @@ private:
     static inline std::mutex &GetTopicsMutex();
 
     std::string topic_;
-    std::shared_ptr<Buffer> buffer_;
+    Buffer buffer_;
 
     std::mutex mutex_; // TODO 是否必要
     std::condition_variable cond_;
@@ -63,7 +63,7 @@ class MessagePublisher
 {
 public:
     MessagePublisher(const std::string &topic) { delegate_ = MessagePublisherDelegate::GetOrNew(topic); }
-    void Publish(Buffer &buffer) { delegate_->Publish(buffer); }
+    void Publish(Buffer &buf) { delegate_->Publish(buf); }
     void Stop() { delegate_->Stop(); }
     ~MessagePublisher() { delegate_->Stop(); }
 
@@ -74,7 +74,7 @@ private:
 class MessageSubscriber
 {
 public:
-    typedef std::function<void(Buffer &buffer)> Callback;
+    typedef std::function<void(MessageSubscriber *sub, Buffer &buffer)> Callback;
 
     MessageSubscriber(const std::string &topic, const Callback &callback);
 
@@ -126,18 +126,18 @@ void async_publisher_cb(uv_async_t *handle)
         }
         return;
     }
-    if (delegate->buffer_ == nullptr)
-    {
-        return;
-    }
-    std::shared_ptr<Buffer> buf;
-    buf.swap(delegate->buffer_);
-    // lock.unlock();
+    // if (delegate->buffer_ == nullptr)
+    // {
+    //     return;
+    // }
+    // std::shared_ptr<Buffer> buf(delegate->buffer_);
+    // Buffer buffer = *buf.get();
 
-    if (buf != nullptr && buf->data_ != nullptr)
+    if (/*buf != nullptr && */delegate->buffer_.data_ != nullptr)
     {
         for (auto sub : delegate->subscribers_)
-            sub->callback_(*buf.get());
+            sub->callback_(sub, delegate->buffer_);
+        delegate->buffer_.data_ = nullptr; // 表示已经处理过了
     }
 }
 
@@ -179,24 +179,16 @@ std::shared_ptr<MessagePublisherDelegate> MessagePublisherDelegate::GetOrNew(con
     }
 }
 
-int MessagePublisherDelegate::Publish(Buffer &b)
+void MessagePublisherDelegate::Publish(Buffer &buf)
 {
-    {
-        // std::lock_guard guard(mutex_); // TODO
-        std::shared_ptr<Buffer> buf(new Buffer(b.data_, b.size_));
-        buffer_ = buf;
-    }
+    buffer_ = buf;
     // TODO timer或者其他API优先级更高？
     uv_async_send(&async_publisher_);
-    return 0;
 };
 
 void MessagePublisherDelegate::Stop()
 {
-    {
-        // std::lock_guard guard(mutex_);
-        stop_ = true;
-    }
+    stop_ = true;
     uv_async_send(&async_publisher_);
 }
 

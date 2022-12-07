@@ -4,15 +4,15 @@
 #include <thread>
 #include <unistd.h>
 
-const uint64_t COUNT = 100000;
+const uint64_t COUNT = 1000000;
 
 static StopWatch stopwatch;
 
-static Buffer buffer;
+static Buffer buffer((char *)1, 4);
 static MessagePublisher *pub1, *pub2;
 static MessageSubscriber *sub1, *sub2;
 
-static void Send(MessagePublisher *pub, uint64_t i)
+static inline void Send(MessagePublisher *pub, uint64_t i)
 {
     buffer.data_ = (char *)i;
     // uint64_t ii = (uint64_t)buffer.data_;
@@ -30,6 +30,7 @@ void RecvProc(MessageSubscriber *sub, Buffer &buffer)
         pub2->Stop();
         sub1->Stop();
         sub2->Stop();
+        return;
         // exit(0);
     }
     if (sub == sub1)
@@ -47,28 +48,28 @@ void RecvProc(MessageSubscriber *sub, Buffer &buffer)
 int main()
 {
     // init
-    buffer.data_ = (char *)1;
-    buffer.size_ = sizeof(buffer.data_);
+    // buffer.data_ = (char *)1;
+    // buffer.size_ = sizeof(buffer.data_);
     // buffer.need_release_ = false;
 
     const std::string topic1("mytopic1");
     MessagePublisher pub11(topic1);
     pub1 = &pub11;
-    auto sub1_cb = [&](Buffer &buffer)
-    {
-        RecvProc(sub1, buffer);
-    };
-    MessageSubscriber sub11(topic1, sub1_cb);
+    // auto sub1_cb = [&](Buffer &buffer)
+    // {
+    //     RecvProc(sub1, buffer);
+    // };
+    MessageSubscriber sub11(topic1, RecvProc);
     sub1 = &sub11;
 
     const std::string topic2("mytopic2");
     MessagePublisher pub22(topic2);
     pub2 = &pub22;
-    auto sub2_cb = [&](Buffer &buffer)
-    {
-        RecvProc(sub2, buffer);
-    };
-    MessageSubscriber sub22(topic2, sub2_cb);
+    // auto sub2_cb = [&](Buffer &buffer)
+    // {
+    //     RecvProc(sub2, buffer);
+    // };
+    MessageSubscriber sub22(topic2, RecvProc);
     sub2 = &sub22;
 
     // 开始测试
@@ -82,4 +83,5 @@ int main()
     return 0;
 }
 
-// StopWatch: total 61498892 ns; average 614 ns/loop.
+// 不加-O3
+// StopWatch: total 692390794 ns; average 692 ns/loop.
