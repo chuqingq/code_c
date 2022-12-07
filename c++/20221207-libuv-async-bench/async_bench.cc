@@ -11,7 +11,7 @@ uint64_t i = 0;
 
 void callback(uv_async_t *handle) {
     // std::cout << "callback: " << i << std::endl;
-    if (++i > count) {
+    if (i > count) {
         uv_close((uv_handle_t *)&async1, NULL);
         uv_close((uv_handle_t *)&async2, NULL);
     }
@@ -20,6 +20,7 @@ void callback(uv_async_t *handle) {
     if (handle == &async1) {
         to = &async2;
     } else {
+		i += 1;
         to = &async1;
     }
 
@@ -39,4 +40,4 @@ int main() {
 }
 
 // g++ -o async_bench{,.cc} -Wall -luv
-// StopWatch: total 27246454 ns; average 272 ns/loop.
+// StopWatch: total 54486432 ns; average 544 ns/loop.
