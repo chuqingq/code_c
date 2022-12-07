@@ -17,52 +17,45 @@ struct Buffer
 
     Buffer() {}
     Buffer(char *data, size_t size) : data_(data), size_(size) {}
-    // bool need_release_;
-    // ~Buffer()
-    // {
-    //     if (need_release_)
-    //     {
-    //         delete data_;
-    //         data_ = NULL;
-    //         size_ = 0;
-    //     }
-    // }
 };
 
 class Message;
-class MessagePublisher;
+class MessagePublisherDelegate;
 class MessageSubscriber;
 
 class Message
 {
-public:
-    static inline MessagePublisher *NewMessagePublisher(const std::string &topic);
-    static inline MessageSubscriber *NewMessageSubscriber(const std::string &topic, const std::function<void(Buffer &buffer)> &callback);
-
 private:
-    static std::map<std::string, MessagePublisher *> &GetTopics()
-    {
-        static std::map<std::string, MessagePublisher *> topics;
-        return topics;
-    }
-    static std::mutex &GetTopicsMutex()
-    {
-        static std::mutex topics_mutex_;
-        return topics_mutex_;
-    }
+    typedef std::map<std::string, std::shared_ptr<MessagePublisherDelegate>> TopicMap;
+    static inline TopicMap &GetTopics();
+    static inline std::mutex &GetTopicsMutex();
 
-    friend class MessagePublisher;
+    friend class MessagePublisherDelegate;
 };
 
-class MessagePublisher
+Message::TopicMap &Message::GetTopics()
+{
+    static TopicMap topics;
+    return topics;
+}
+
+std::mutex &Message::GetTopicsMutex()
+{
+    static std::mutex topics_mutex_;
+    return topics_mutex_;
+}
+
+class MessagePublisherDelegate
 {
 public:
+    MessagePublisherDelegate() {}
+    ~MessagePublisherDelegate() { Stop(); }
+
+private:
+    static inline std::shared_ptr<MessagePublisherDelegate> GetOrNew(const std::string &topic);
+
     inline void Stop();
 
-    ~MessagePublisher()
-    {
-        Stop();
-    }
     // int Acquire(Buffer &buf){
     //     // TODO
     // };
@@ -78,13 +71,43 @@ private:
     std::mutex subscribers_mutex_;
 
     friend class Message;
+    friend class MessagePublisher;
     friend class MessageSubscriber;
+};
+
+class MessagePublisher
+{
+public:
+    MessagePublisher(const std::string &topic)
+    {
+        delegate_ = MessagePublisherDelegate::GetOrNew(topic);
+    }
+
+    void Publish(Buffer &buffer)
+    {
+        delegate_->Publish(buffer);
+    }
+
+    void Stop()
+    {
+        delegate_->Stop();
+    }
+
+    ~MessagePublisher()
+    {
+        delegate_->Stop();
+    }
+
+private:
+    std::shared_ptr<MessagePublisherDelegate> delegate_;
 };
 
 class MessageSubscriber
 {
 public:
-    // MessageSubscriber() : stop_(false) {}
+    typedef std::function<void(Buffer &buffer)> Callback;
+
+    MessageSubscriber(const std::string &topic, const Callback &callback);
 
     void Stop()
     {
@@ -98,7 +121,8 @@ public:
 
     void WaitStop()
     {
-        thread_.join();
+        if (thread_.joinable())
+            thread_.join();
     }
 
     ~MessageSubscriber()
@@ -112,79 +136,43 @@ public:
 
     // typedef const std::function<void(int)> &SubCallback;
 private:
-    MessageSubscriber(MessagePublisher *publisher, const std::function<void(Buffer &)> &callback)
-    {
-        stop_ = false;
-        publisher_ = publisher;
-        callback_ = callback;
-        auto loop = [&]
-        {
-            while (true)
-            {
-                std::unique_lock lock(publisher_->mutex_);
-                if (stop_)
-                {
-                    std::cout << (void *)this << " sub stopped\n";
-                    return;
-                }
-                if (buffer_ == nullptr)
-                {
-                    publisher_->cond_.wait(lock);
-                    std::cout << (void *)this << " wait()\n";
-                }
-                std::shared_ptr<Buffer> buf;
-                buf.swap(buffer_);
-                lock.unlock();
-
-                if (buf != nullptr && buf->data_ != nullptr)
-                {
-                    callback_(*buf.get());
-                }
-            }
-        };
-        std::thread th(loop);
-        thread_ = std::move(th);
-    }
-
-    MessagePublisher *publisher_;
+    std::shared_ptr<MessagePublisherDelegate> publisher_;
     std::shared_ptr<Buffer> buffer_;
     bool stop_;
     // std::mutex stop_mutex_;
     // std::condition_variable stop_cond_;
 
     std::thread thread_;
-    std::function<void(Buffer &)> callback_;
+    Callback callback_;
 
     friend class Message;
-    friend class MessagePublisher;
+    friend class MessagePublisherDelegate;
 };
 
 // Message
 
-MessagePublisher *Message::NewMessagePublisher(const std::string &topic)
+// 根据topic获取Delegate，如果没有则新建
+// static
+std::shared_ptr<MessagePublisherDelegate> MessagePublisherDelegate::GetOrNew(const std::string &topic)
 {
     std::lock_guard guard(Message::GetTopicsMutex());
 
     auto it = Message::GetTopics().find(topic);
     if (it != Message::GetTopics().end())
     {
-        if (!it->second->topic_.empty())
-        {
-            throw;
-        }
-        it->second->topic_ = topic;
         return it->second;
     }
     else
     {
-        auto pub = new MessagePublisher();
-        pub->topic_ = topic;
-        Message::GetTopics()[topic] = pub;
-        return pub;
+        std::shared_ptr<MessagePublisherDelegate> delegate(new MessagePublisherDelegate());
+        // Init(); // TODO
+        delegate->topic_ = topic;
+        Message::GetTopics()[topic] = delegate;
+        return delegate;
     }
 }
 
-int MessagePublisher::Publish(Buffer &b)
+int MessagePublisherDelegate::Publish(Buffer &b)
 {
     std::lock_guard guard(mutex_);
     std::shared_ptr<Buffer> buf(new Buffer(b.data_, b.size_));
@@ -196,32 +184,49 @@ int MessagePublisher::Publish(Buffer &b)
     return 0;
 };
 
-MessageSubscriber *Message::NewMessageSubscriber(const std::string &topic, const std::function<void(Buffer &buffer)> &callback)
+MessageSubscriber::MessageSubscriber(const std::string &topic, const Callback &callback)
 {
-    std::map<std::string, MessagePublisher *>::iterator it;
+    auto delegate = MessagePublisherDelegate::GetOrNew(topic);
     {
-        std::lock_guard guard(Message::GetTopicsMutex());
-        it = Message::GetTopics().find(topic);
-        if (it == Message::GetTopics().end())
-        {
-            auto pub = new MessagePublisher();
-            // pub.topic_ = topic;
-            Message::GetTopics()[topic] = pub;
-            it = Message::GetTopics().find(topic);
-        }
+        std::lock_guard guard(delegate->subscribers_mutex_);
+        delegate->subscribers_.insert(this);
     }
 
+    stop_ = false;
+    publisher_ = delegate;
+    callback_ = callback;
+    auto loop = [&]
     {
-        std::lock_guard guard(it->second->subscribers_mutex_);
-        auto sub = new MessageSubscriber(it->second, callback);
-        it->second->subscribers_.insert(sub);
-        return sub;
-    }
+        while (true)
+        {
+            std::unique_lock lock(publisher_->mutex_);
+            if (stop_)
+            {
+                std::cout << (void *)this << " sub stopped\n";
+                return;
+            }
+            if (buffer_ == nullptr)
+            {
+                publisher_->cond_.wait(lock);
+                // std::cout << (void *)this << " wait()\n";
+            }
+            std::shared_ptr<Buffer> buf;
+            buf.swap(buffer_);
+            lock.unlock();
+
+            if (buf != nullptr && buf->data_ != nullptr)
+            {
+                callback_(*buf.get());
+            }
+        }
+    };
+    std::thread th(loop);
+    thread_ = std::move(th);
 }
 
-// MessagePublisher
+// MessagePublisherDelegate
 
-void MessagePublisher::Stop()
+void MessagePublisherDelegate::Stop()
 {
     {
         std::lock_guard guard(Message::GetTopicsMutex());
@@ -239,3 +244,7 @@ void MessagePublisher::Stop()
 
     // delete this; // TODO 改成不一定在堆上分配
 }
+
+// TODO 确保Publisher和Subscriber可以使用堆或栈分配。
+// TODO 使用libuv，不为subscriber创建独立的线程
+// TODO MessagePublisher使用MessagePublisherDelegate

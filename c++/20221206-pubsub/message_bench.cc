@@ -4,7 +4,7 @@
 #include <thread>
 #include <unistd.h>
 
-const uint64_t COUNT = 1000;
+const uint64_t COUNT = 100000;
 
 static StopWatch stopwatch;
 
@@ -15,8 +15,8 @@ static MessageSubscriber *sub1, *sub2;
 static void Send(MessagePublisher *pub, uint64_t i)
 {
     buffer.data_ = (char *)i;
-    uint64_t ii = (uint64_t)buffer.data_;
-    std::cout << (void *)pub << " pub send: " << ii << std::endl;
+    // uint64_t ii = (uint64_t)buffer.data_;
+    // std::cout << (void *)pub << " pub send: " << ii << std::endl;
     pub->Publish(buffer);
 }
 
@@ -34,12 +34,12 @@ void RecvProc(MessageSubscriber *sub, Buffer &buffer)
     }
     if (sub == sub1)
     {
-        std::cout << (void *)sub << " sub1 recv: " << i << std::endl;
+        // std::cout << (void *)sub << " sub1 recv: " << i << std::endl;
         Send(pub2, i);
     }
     else
     {
-        std::cout << (void *)sub << " sub2 recv: " << i << std::endl;
+        // std::cout << (void *)sub << " sub2 recv: " << i << std::endl;
         Send(pub1, i + 1);
     }
 }
@@ -52,29 +52,34 @@ int main()
     // buffer.need_release_ = false;
 
     const std::string topic1("mytopic1");
-    pub1 = Message::NewMessagePublisher(topic1);
+    MessagePublisher pub11(topic1);
+    pub1 = &pub11;
     auto sub1_cb = [&](Buffer &buffer)
     {
         RecvProc(sub1, buffer);
     };
-    sub1 = Message::NewMessageSubscriber(topic1, sub1_cb);
+    MessageSubscriber sub11(topic1, sub1_cb);
+    sub1 = &sub11;
 
     const std::string topic2("mytopic2");
-    pub2 = Message::NewMessagePublisher(topic2);
+    MessagePublisher pub22(topic2);
+    pub2 = &pub22;
     auto sub2_cb = [&](Buffer &buffer)
     {
         RecvProc(sub2, buffer);
     };
-    sub2 = Message::NewMessageSubscriber(topic2, sub2_cb);
+    MessageSubscriber sub22(topic2, sub2_cb);
+    sub2 = &sub22;
 
     // 开始测试
     stopwatch.start();
 
     Send(pub1, 1);
+    std::cout << "## main thread after Send(1)\n";
 
-    // wait
-    sub1->WaitStop();
-    sub2->WaitStop();
+    // wait 确保消息发完，从callback中stop，而非析构stop
+    sub22.WaitStop();
+    sub11.WaitStop();
     // while (1)
     // {
     //     // std::this_thread::sleep_for(std::chrono::milliseconds(2000));
@@ -83,16 +88,3 @@ int main()
 
     return 0;
 }
-
-/*
-编译：
-make
-
-性能测试条件：
-Ubuntu 20.04 LTS in VirtualBox
-
-性能测试结果：
-终端1执行： ./bench_receiver
-终端2执行： ./bench_sender
-相同节点、不同进程： StopWatch: total 5111822684 ns; average 511182 ns/loop.
-*/
