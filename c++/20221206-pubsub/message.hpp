@@ -19,31 +19,8 @@ struct Buffer
     Buffer(char *data, size_t size) : data_(data), size_(size) {}
 };
 
-class Message;
-class MessagePublisherDelegate;
+class MessagePublisher;
 class MessageSubscriber;
-
-class Message
-{
-private:
-    typedef std::map<std::string, std::shared_ptr<MessagePublisherDelegate>> TopicMap;
-    static inline TopicMap &GetTopics();
-    static inline std::mutex &GetTopicsMutex();
-
-    friend class MessagePublisherDelegate;
-};
-
-Message::TopicMap &Message::GetTopics()
-{
-    static TopicMap topics;
-    return topics;
-}
-
-std::mutex &Message::GetTopicsMutex()
-{
-    static std::mutex topics_mutex_;
-    return topics_mutex_;
-}
 
 class MessagePublisherDelegate
 {
@@ -62,6 +39,10 @@ private:
     inline int Publish(Buffer &b);
 
 private:
+    typedef std::map<std::string, std::shared_ptr<MessagePublisherDelegate>> TopicMap;
+    static inline TopicMap &GetTopics();
+    static inline std::mutex &GetTopicsMutex();
+
     std::string topic_;
     // Buffer buffer_;
     std::mutex mutex_;
@@ -114,9 +95,9 @@ public:
         {
             std::lock_guard guard(publisher_->mutex_);
             stop_ = true;
-            publisher_->subscribers_.erase(this); // TODO 放到上面
+            publisher_->subscribers_.erase(this);
         }
-        publisher_->cond_.notify_all(); // TODO 想避免唤醒所有sub
+        publisher_->cond_.notify_all();
     }
 
     void WaitStop()
@@ -134,13 +115,10 @@ public:
         WaitStop();
     }
 
-    // typedef const std::function<void(int)> &SubCallback;
 private:
     std::shared_ptr<MessagePublisherDelegate> publisher_;
     std::shared_ptr<Buffer> buffer_;
     bool stop_;
-    // std::mutex stop_mutex_;
-    // std::condition_variable stop_cond_;
 
     std::thread thread_;
     Callback callback_;
@@ -149,25 +127,35 @@ private:
     friend class MessagePublisherDelegate;
 };
 
-// Message
+// MessagePublisherDelegate
 
-// 根据topic获取Delegate，如果没有则新建
-// static
+MessagePublisherDelegate::TopicMap &MessagePublisherDelegate::GetTopics()
+{
+    static TopicMap topics;
+    return topics;
+}
+
+std::mutex &MessagePublisherDelegate::GetTopicsMutex()
+{
+    static std::mutex topics_mutex_;
+    return topics_mutex_;
+}
+
+// MessagePublisherDelegate::GetOrNew 根据topic获取Delegate，如果没有则新建。被Publisher和Subscriber调用
 std::shared_ptr<MessagePublisherDelegate> MessagePublisherDelegate::GetOrNew(const std::string &topic)
 {
-    std::lock_guard guard(Message::GetTopicsMutex());
+    std::lock_guard guard(GetTopicsMutex());
 
-    auto it = Message::GetTopics().find(topic);
-    if (it != Message::GetTopics().end())
+    auto it = GetTopics().find(topic);
+    if (it != GetTopics().end())
     {
         return it->second;
     }
     else
     {
         std::shared_ptr<MessagePublisherDelegate> delegate(new MessagePublisherDelegate());
-        // Init(); // TODO
         delegate->topic_ = topic;
-        Message::GetTopics()[topic] = delegate;
+        GetTopics()[topic] = delegate;
         return delegate;
     }
 }
@@ -184,6 +172,27 @@ int MessagePublisherDelegate::Publish(Buffer &b)
     return 0;
 };
 
+void MessagePublisherDelegate::Stop()
+{
+    {
+        std::lock_guard guard(GetTopicsMutex());
+        GetTopics().erase(topic_);
+    }
+
+    {
+        std::lock_guard guard(mutex_);
+        for (auto sub : subscribers_)
+        {
+            sub->stop_ = true;
+        }
+    }
+    cond_.notify_all();
+
+    // delete this; // TODO 改成不一定在堆上分配
+}
+
+// MessageSubscriber
+
 MessageSubscriber::MessageSubscriber(const std::string &topic, const Callback &callback)
 {
     auto delegate = MessagePublisherDelegate::GetOrNew(topic);
@@ -195,6 +204,7 @@ MessageSubscriber::MessageSubscriber(const std::string &topic, const Callback &c
     stop_ = false;
     publisher_ = delegate;
     callback_ = callback;
+
     auto loop = [&]
     {
         while (true)
@@ -220,31 +230,11 @@ MessageSubscriber::MessageSubscriber(const std::string &topic, const Callback &c
             }
         }
     };
+
     std::thread th(loop);
     thread_ = std::move(th);
 }
 
-// MessagePublisherDelegate
-
-void MessagePublisherDelegate::Stop()
-{
-    {
-        std::lock_guard guard(Message::GetTopicsMutex());
-        Message::GetTopics().erase(topic_);
-    }
-
-    {
-        std::lock_guard guard(mutex_);
-        for (auto sub : subscribers_)
-        {
-            sub->stop_ = true;
-        }
-    }
-    cond_.notify_all();
-
-    // delete this; // TODO 改成不一定在堆上分配
-}
-
-// TODO 确保Publisher和Subscriber可以使用堆或栈分配。
+// DONE 确保Publisher和Subscriber可以使用堆或栈分配
+// DONE MessagePublisher使用MessagePublisherDelegate
 // TODO 使用libuv，不为subscriber创建独立的线程
-// TODO MessagePublisher使用MessagePublisherDelegate
