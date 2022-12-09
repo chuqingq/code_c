@@ -1,3 +1,3 @@
 all:
-	g++ -g -std=c++20 \
-		message_bench.cc -o message_bench -Wall -luv
+	g++ -g -std=c++20 -Wall \
+		-o message_bench{,.cc}  -luv

@@ -33,38 +33,28 @@ void RecvProc(MessageSubscriber *sub, std::shared_ptr<Buffer> buffer) {
     return;
     // exit(0);
   }
-  if (sub == sub1) {
-    // std::cout << (void *)sub << " sub1 recv: " << i << std::endl;
-    Send(pub2, i);
-  } else {
-    // std::cout << (void *)sub << " sub2 recv: " << i << std::endl;
-    Send(pub1, i + 1);
+  MessagePublisher *pub = pub2;
+  auto next = i;
+  if (sub == sub2) {
+    pub = pub1;
+    next += 1;
   }
+
+  buffer->data_ = (char *)next;
+  pub->Publish(buffer);
 }
 
 int main() {
   // init
-  // buffer.data_ = (char *)1;
-  // buffer.size_ = sizeof(buffer.data_);
-  // buffer.need_release_ = false;
-
   const std::string topic1("mytopic1");
   MessagePublisher pub11(topic1);
   pub1 = &pub11;
-  // auto sub1_cb = [&](Buffer &buffer)
-  // {
-  //     RecvProc(sub1, buffer);
-  // };
   MessageSubscriber sub11(topic1, RecvProc);
   sub1 = &sub11;
 
   const std::string topic2("mytopic2");
   MessagePublisher pub22(topic2);
   pub2 = &pub22;
-  // auto sub2_cb = [&](Buffer &buffer)
-  // {
-  //     RecvProc(sub2, buffer);
-  // };
   MessageSubscriber sub22(topic2, RecvProc);
   sub2 = &sub22;
 
@@ -80,4 +70,4 @@ int main() {
 }
 
 // 不加-O3
-// StopWatch: total 692390794 ns; average 692 ns/loop.
+// StopWatch: total 1564605000 ns; average 1564 ns/loop.
