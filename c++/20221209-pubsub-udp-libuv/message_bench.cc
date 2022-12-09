@@ -68,6 +68,7 @@ int main() {
 
   return 0;
 }
-
-// 不加-O3
 // StopWatch: total 1564605000 ns; average 1564 ns/loop.
+//
+// publish不再等待async_publisher_cb，而是直接发给subscriber：
+// StopWatch: total 1052468390 ns; average 1052 ns/loop.
