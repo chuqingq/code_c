@@ -1,0 +1,83 @@
+#include <unistd.h>
+
+#include <thread>
+
+#include "message.hpp"
+#include "stop_watch.hpp"
+
+const uint64_t COUNT = 1000000;
+
+static StopWatch stopwatch;
+
+static std::shared_ptr<Buffer> buffer(new Buffer((char *)1, 0));
+static MessagePublisher *pub1, *pub2;
+static MessageSubscriber *sub1, *sub2;
+
+static inline void Send(MessagePublisher *pub, uint64_t i) {
+  buffer->data_ = (char *)i;
+  // uint64_t ii = (uint64_t)buffer.data_;
+  // std::cout << (void *)pub << " pub send: " << ii << std::endl;
+  pub->Publish(buffer);
+}
+
+void RecvProc(MessageSubscriber *sub, std::shared_ptr<Buffer> buffer) {
+  uint64_t i = (uint64_t)buffer->data_;
+  //   std::cout << i << std::endl;
+  if (i > COUNT) {
+    std::cout << (void *)sub << " sub stopping\n";
+    stopwatch.print(COUNT);
+    pub1->Stop();
+    pub2->Stop();
+    sub1->Stop();
+    sub2->Stop();
+    return;
+    // exit(0);
+  }
+  if (sub == sub1) {
+    // std::cout << (void *)sub << " sub1 recv: " << i << std::endl;
+    Send(pub2, i);
+  } else {
+    // std::cout << (void *)sub << " sub2 recv: " << i << std::endl;
+    Send(pub1, i + 1);
+  }
+}
+
+int main() {
+  // init
+  // buffer.data_ = (char *)1;
+  // buffer.size_ = sizeof(buffer.data_);
+  // buffer.need_release_ = false;
+
+  const std::string topic1("mytopic1");
+  MessagePublisher pub11(topic1);
+  pub1 = &pub11;
+  // auto sub1_cb = [&](Buffer &buffer)
+  // {
+  //     RecvProc(sub1, buffer);
+  // };
+  MessageSubscriber sub11(topic1, RecvProc);
+  sub1 = &sub11;
+
+  const std::string topic2("mytopic2");
+  MessagePublisher pub22(topic2);
+  pub2 = &pub22;
+  // auto sub2_cb = [&](Buffer &buffer)
+  // {
+  //     RecvProc(sub2, buffer);
+  // };
+  MessageSubscriber sub22(topic2, RecvProc);
+  sub2 = &sub22;
+
+  // 开始测试
+  stopwatch.start();
+
+  Send(pub1, 1);
+  std::cout << "## main thread after Send(1)\n";
+
+  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+
+  return 0;
+}
+
+// 不加-O3
+// StopWatch: total 692390794 ns; average 692 ns/loop.
