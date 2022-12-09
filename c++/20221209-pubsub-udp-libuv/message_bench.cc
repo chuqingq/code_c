@@ -72,3 +72,6 @@ int main() {
 //
 // publish不再等待async_publisher_cb，而是直接发给subscriber：
 // StopWatch: total 1052468390 ns; average 1052 ns/loop.
+//
+// buffer_的类型从shared_ptr换成Buffer*：
+// StopWatch: total 782292824 ns; average 782 ns/loop.
