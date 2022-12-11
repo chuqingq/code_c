@@ -23,7 +23,7 @@ static inline void Send(MessagePublisher *pub, uint64_t i) {
 
 void RecvProc(MessageSubscriber *sub, std::shared_ptr<Buffer> buffer) {
   uint64_t i = (uint64_t)buffer->data_;
-  //   std::cout << i << std::endl;
+  // std::cout << i << std::endl;
   if (i > COUNT) {
     std::cout << (void *)sub << " sub stopping\n";
     stopwatch.print(COUNT);
