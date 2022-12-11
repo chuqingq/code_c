@@ -45,7 +45,32 @@ void RecvProc(MessageSubscriber *sub, std::shared_ptr<Buffer> buffer) {
   pub->Publish(buffer);
 }
 
-int main() {
+int single_thread_main() {
+  // init
+  const std::string topic1("mytopic1");
+  MessagePublisher pub11(topic1);
+  pub1 = &pub11;
+  MessageSubscriber sub11(topic1, RecvProc);
+  sub1 = &sub11;
+
+  const std::string topic2("mytopic2");
+  MessagePublisher pub22(topic2);
+  pub2 = &pub22;
+  MessageSubscriber sub22(topic2, RecvProc);
+  sub2 = &sub22;
+
+  // 开始测试
+  stopwatch.start();
+
+  Send(pub1, 1);
+  std::cout << "## main thread after Send(1)\n";
+
+  uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+
+  return 0;
+}
+
+int multi_thread_main() {
   // init
   const std::string topic1("mytopic1");
   const std::string topic2("mytopic2");
@@ -81,4 +106,13 @@ int main() {
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
   return 0;
 }
+
+int main() {
+  multi_thread_main();
+  return single_thread_main();
+}
+
+// multi_thread_main:
 // StopWatch: total 1509671305 ns; average 30193 ns/loop.
+// single_thread_main:
+// StopWatch: total 50184822 ns; average 1003 ns/loop.
