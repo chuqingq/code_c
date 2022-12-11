@@ -14,3 +14,5 @@ int main() {
     delete[] array; // 加上这行，valgrind仍然有内存泄漏，应该是valgrind误报
     return 0;
 }
+
+// 2022-12-11 valgrind检测正确，没有内存泄露了
