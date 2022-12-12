@@ -12,6 +12,7 @@
 #include <set>
 #include <shared_mutex>
 #include <string>
+#include <vector>
 
 struct Buffer {
   char *data_;
@@ -71,7 +72,26 @@ class MessagePublisher {
       throw;
     }
   }
-  void Publish(std::shared_ptr<Buffer> &buf) { delegate_->Publish(&udp_, buf); }
+  int AddSub(const std::string &ip, int port) {
+    struct sockaddr_in addr;
+    int r = uv_ip4_addr(ip.c_str(), port, &addr);
+    if (r) {
+      std::cout << "uv_ip4_addr error\n";
+      return -1;
+    }
+    subs_.push_back(addr);
+    return 0;
+  }
+  void Publish(std::shared_ptr<Buffer> &buf) {
+    for (const auto sub : subs_) {
+      uv_buf_t b = uv_buf_init(buf->data_, buf->size_);
+      int r = uv_udp_try_send(&udp_, &b, 1, (const struct sockaddr *)&sub);
+      if (r < 0) {
+        perror("uv_udp_try_send error");
+      }
+      std::cout << "pub try_send: " << buf->size_ << std::endl;
+    }
+  }
   void Stop() { delegate_->Stop(); }
   ~MessagePublisher() { uv_close((uv_handle_t *)&udp_, pinger_close_cb); }
 
@@ -79,6 +99,7 @@ class MessagePublisher {
   std::shared_ptr<MessagePublisherDelegate> delegate_;
   uv_loop_t *loop_;
   uv_udp_t udp_;
+  std::vector<struct sockaddr_in> subs_;
 };
 
 class MessageSubscriber {
@@ -106,7 +127,7 @@ class MessageSubscriber {
   uv_async_t async_subscriber_;
   std::atomic<bool> stop_;
   std::atomic<std::shared_ptr<Buffer>> buffer_;
-  char slab_[64];  // TODO
+  char slab_[4096];  // TODO
   Callback callback_;
 
   friend class Message;
@@ -194,7 +215,7 @@ static void buf_free(const uv_buf_t *buf) {}
 
 inline void pinger_read_cb(uv_udp_t *udp, ssize_t nread, const uv_buf_t *buf,
                            const struct sockaddr *addr, unsigned flags) {
-  //   std::cout << "pinger_read_cb: nread = " << nread << std::endl;
+  std::cout << "pinger_read_cb: nread = " << nread << std::endl;
   MessageSubscriber *sub = (MessageSubscriber *)udp->data;
 
   /* No data here means something went wrong */

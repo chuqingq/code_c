@@ -5,12 +5,12 @@
 #include "message.hpp"
 #include "stop_watch.hpp"
 
-const uint64_t COUNT = 50000;
-// const uint64_t COUNT = 2;
+// const uint64_t COUNT = 50000;
+const uint64_t COUNT = 1;
 
 static StopWatch stopwatch;
 
-char value[sizeof(uint64_t)];
+char value[4096];
 
 static std::shared_ptr<Buffer> buffer(new Buffer(value, sizeof(value)));
 static MessagePublisher *pub1, *pub2;
@@ -74,17 +74,21 @@ void RecvProc(MessageSubscriber *sub, std::shared_ptr<Buffer> buffer) {
 
 int multi_thread_main() {
   // init
+  const std::string ip("127.0.0.1");
   const std::string topic1("mytopic1");
   const std::string topic2("mytopic2");
+  const int port1 = 10001;
+  const int port2 = 10002;
 
   std::jthread thread2([&] {
     uv_loop_t loop;
     uv_loop_init(&loop);
 
-    MessageSubscriber sub11(topic1, "127.0.0.1", 10002, RecvProc, &loop);
+    MessageSubscriber sub11(topic1, ip, port1, RecvProc, &loop);
     sub1 = &sub11;
 
     MessagePublisher pub22(topic2, &loop);
+    pub22.AddSub(ip, port2);
     pub2 = &pub22;
 
     uv_run(&loop, UV_RUN_DEFAULT);
@@ -93,9 +97,9 @@ int multi_thread_main() {
   });
 
   MessagePublisher pub11(topic1);
+  pub11.AddSub(ip, port1);
   pub1 = &pub11;
-  MessageSubscriber sub22(topic2, "127.0.0.1", 10001, RecvProc,
-                          uv_default_loop());
+  MessageSubscriber sub22(topic2, ip, port2, RecvProc, uv_default_loop());
   sub2 = &sub22;
 
   usleep(200);  // TODO
