@@ -5,12 +5,12 @@
 #include "message.hpp"
 #include "stop_watch.hpp"
 
-// const uint64_t COUNT = 50000;
-const uint64_t COUNT = 1;
+const uint64_t COUNT = 50000;
+// const uint64_t COUNT = 2;
 
 static StopWatch stopwatch;
 
-char value[4096];
+char value[8];
 
 static std::shared_ptr<Buffer> buffer(new Buffer(value, sizeof(value)));
 static MessagePublisher *pub1, *pub2;

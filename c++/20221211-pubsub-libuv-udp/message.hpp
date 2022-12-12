@@ -85,11 +85,13 @@ class MessagePublisher {
   void Publish(std::shared_ptr<Buffer> &buf) {
     for (const auto sub : subs_) {
       uv_buf_t b = uv_buf_init(buf->data_, buf->size_);
+      //   std::cout << b.len << std::endl;
       int r = uv_udp_try_send(&udp_, &b, 1, (const struct sockaddr *)&sub);
       if (r < 0) {
         perror("uv_udp_try_send error");
       }
-      std::cout << "pub try_send: " << buf->size_ << std::endl;
+      //   std::cout << (void *)this << " pub try_send: " << buf->size_ <<
+      //   std::endl;
     }
   }
   void Stop() { delegate_->Stop(); }
@@ -127,7 +129,7 @@ class MessageSubscriber {
   uv_async_t async_subscriber_;
   std::atomic<bool> stop_;
   std::atomic<std::shared_ptr<Buffer>> buffer_;
-  char slab_[4096];  // TODO
+  char slab_[8];  // TODO
   Callback callback_;
 
   friend class Message;
@@ -215,8 +217,12 @@ static void buf_free(const uv_buf_t *buf) {}
 
 inline void pinger_read_cb(uv_udp_t *udp, ssize_t nread, const uv_buf_t *buf,
                            const struct sockaddr *addr, unsigned flags) {
-  std::cout << "pinger_read_cb: nread = " << nread << std::endl;
+  if (nread == 0) {
+    return;
+  }
   MessageSubscriber *sub = (MessageSubscriber *)udp->data;
+  //   std::cout << (void *)sub << " pinger_read_cb: nread = " << nread <<
+  //   std::endl;
 
   /* No data here means something went wrong */
   //   ASSERT(nread > 0);
@@ -273,7 +279,7 @@ void MessageSubscriber::Post(uv_udp_t *udp, std::shared_ptr<Buffer> &buf) {
   //   buffer_.store(buf);
   //   uv_async_send(&async_subscriber_);
   uv_buf_t b = uv_buf_init(buf->data_, buf->size_);
-  //   std::cout << (void *)b.base << std::endl;
+  //   std::cout << b.len << std::endl;
 
   int r = uv_udp_try_send(udp, &b, 1, (const struct sockaddr *)&addr_);
   if (r < 0) {
