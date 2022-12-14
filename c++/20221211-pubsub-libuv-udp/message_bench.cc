@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <unistd.h>
 
 #include <thread>
@@ -10,31 +11,25 @@ const uint64_t COUNT = 50000;
 
 static StopWatch stopwatch;
 
-char value[8];
+char value[8] = "\0";
 
-static std::shared_ptr<Buffer> buffer(new Buffer(value, sizeof(value)));
+static Buffer buffer(value, sizeof(value));
 static MessagePublisher *pub1, *pub2;
 static MessageSubscriber *sub1, *sub2;
 
 static inline void Send(MessagePublisher *pub, uint64_t i) {
-  *(uint64_t *)buffer->data_ = i;
-  // uint64_t ii = (uint64_t)buffer.data_;
-  // std::cout << (void *)pub << " pub send: " << ii << std::endl;
+  *(uint64_t *)buffer.data_ = i;
   pub->Publish(buffer);
 }
 
-void RecvProc(MessageSubscriber *sub, std::shared_ptr<Buffer> buffer) {
-  uint64_t i = *(uint64_t *)buffer->data_;  // TODO 转换
+void RecvProc(MessageSubscriber *sub, const Buffer &buffer) {
+  uint64_t i = *(uint64_t *)buffer.data_;  // TODO 转换
   //   std::cout << "RecvProc: " << i << std::endl;
   if (i > COUNT) {
     std::cout << (void *)sub << " sub stopping\n";
     stopwatch.print(COUNT);
-    pub1->Stop();
-    pub2->Stop();
-    sub1->Stop();
-    sub2->Stop();
-    return;
-    // exit(0);
+    sub->Stop();
+    // 本sub停掉后，继续发送，确保另一个线程的sub和pub可以停掉。
   }
   MessagePublisher *pub = pub2;
   auto next = i;
@@ -43,34 +38,12 @@ void RecvProc(MessageSubscriber *sub, std::shared_ptr<Buffer> buffer) {
     next += 1;
   }
 
-  *(uint64_t *)buffer->data_ = next;
+  *(uint64_t *)buffer.data_ = next;
+  //   std::cout << "RecvProc: " << buffer.size_ << std::endl;
   pub->Publish(buffer);
+  // 本pub发送完成后，如果i超过COUNT则停掉。
+  if (i > COUNT) pub->Stop();
 }
-
-// int single_thread_main() {
-//   // init
-//   const std::string topic1("mytopic1");
-//   MessagePublisher pub11(topic1);
-//   pub1 = &pub11;
-//   MessageSubscriber sub11(topic1, RecvProc);
-//   sub1 = &sub11;
-
-//   const std::string topic2("mytopic2");
-//   MessagePublisher pub22(topic2);
-//   pub2 = &pub22;
-//   MessageSubscriber sub22(topic2, RecvProc);
-//   sub2 = &sub22;
-
-//   // 开始测试
-//   stopwatch.start();
-
-//   Send(pub1, 1);
-//   std::cout << "## main thread after Send(1)\n";
-
-//   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
-
-//   return 0;
-// }
 
 int multi_thread_main() {
   // init
@@ -92,8 +65,8 @@ int multi_thread_main() {
     pub2 = &pub22;
 
     uv_run(&loop, UV_RUN_DEFAULT);
-    uv_loop_close(&loop);
-    std::cout << "thread2 exit\n";
+    int r = uv_loop_close(&loop);
+    assert(r == 0);
   });
 
   MessagePublisher pub11(topic1);
@@ -116,14 +89,9 @@ int multi_thread_main() {
 
 int main() {
   multi_thread_main();
-  //   single_thread_main();
   return 0;
 }
-// multi_thread_main:
+// multi_thread_main: TODO
 // StopWatch: total 1908617835 ns; average 38172 ns/loop.
-
-/*
-TODO
-1. 大消息？
-2. 简化message.hpp，是否可以不要delegate？
-*/
+// 家中matebook wsl：
+// StopWatch: total 3263650097 ns; average 65273 ns/loop.
