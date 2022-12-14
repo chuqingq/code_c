@@ -51,7 +51,6 @@ class State {
     locks_[i].store(kRWLockFree);
     // read_pos_.store(i, std::memory_order_relaxed);
     read_pos_.store(i);
-    std::cout << "read_pos_.store " << i << std::endl;
   }
 
   int LockForRead() {
@@ -129,14 +128,13 @@ class ShmBlock {
       return NULL;
     }
     int i = state_->LockForWrite();
-    std::cout << "AcquireBlockToWrite LockForWrite: " << i
-              << ", void*: " << (void *)(buffer_ + i * block_size_)
-              << std::endl;
+    // std::cout << "AcquireBlockToWrite LockForWrite: " << i
+    //           << ", void*: " << (void *)(buffer_ + i * block_size_)
+    //           << std::endl;
     return buffer_ + i * block_size_;
   }
 
   void ReleaseWrittenBlock(void *buf) {
-    std::cout << "ReleaseWrittenBlock: " << buf << std::endl;
     int i = ((char *)buf - buffer_) / block_size_;
     state_->ReleaseWriteLock(i);
   }

@@ -6,8 +6,8 @@
 #include "message.hpp"
 #include "stop_watch.hpp"
 
-// const uint64_t COUNT = 50000;
-const uint64_t COUNT = 2;
+const uint64_t COUNT = 40000;
+// const uint64_t COUNT = 2;
 
 static StopWatch stopwatch;
 
@@ -21,7 +21,6 @@ static inline void Send(MessagePublisher *pub, uint64_t i) {
   Buffer b;
   pub->Acquire(&b);
   *(uint64_t *)b.data_ = i;
-  std::cout << "after acquire: " << (void *)b.data_ << "\n";
   pub->Publish(b);
 }
 

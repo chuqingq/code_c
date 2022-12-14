@@ -74,13 +74,11 @@ int MessagePublisher::AddSub(const std::string &ip, int port) {
 int MessagePublisher::Acquire(Buffer *buf) {
   if (buf->size_ > kBlockSize) throw "buf size exceeds kBlockSize";
   buf->data_ = (char *)shm_.AcquireBlockToWrite();
-  std::cout << "Acquire: " << (void *)buf->data_ << std::endl;
   buf->size_ = kBlockSize;
   return 0;
 }
 
 void MessagePublisher::Publish(const Buffer &buf) {
-  std::cout << "publish: " << (void *)buf.data_ << "\n";
   shm_.ReleaseWrittenBlock(buf.data_);
   // 通知subs TODO 后面要改成把addr放在State中
   static char notify = 'n';
