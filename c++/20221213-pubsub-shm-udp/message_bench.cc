@@ -6,7 +6,7 @@
 #include "message.hpp"
 #include "stop_watch.hpp"
 
-const uint64_t COUNT = 40000;
+const uint64_t COUNT = 100000;
 // const uint64_t COUNT = 2;
 
 static StopWatch stopwatch;
@@ -91,7 +91,4 @@ int main() {
   multi_thread_main();
   return 0;
 }
-// multi_thread_main: TODO
-// StopWatch: total 1908617835 ns; average 38172 ns/loop.
-// 家中matebook wsl：
-// StopWatch: total 3263650097 ns; average 65273 ns/loop.
+// StopWatch: total 3611242381 ns; average 36112 ns/loop.
