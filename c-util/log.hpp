@@ -10,7 +10,6 @@ const int kLogLevelInfom = 4;
 const int kLogLevelError = 6;
 const int kLogLevelDisab = 9;
 
-extern __thread char logStr[10240];
 inline int& LogLevel() {
   static int gLogLevel = kLogLevelDebug;
   return gLogLevel;
@@ -18,7 +17,7 @@ inline int& LogLevel() {
 
 inline void SetLogLevel(int level) { LogLevel() = level; }
 
-#define _logf(level, fmt, args...)                                           \
+#define log(level, fmt, args...)                                             \
   do {                                                                       \
     if (LogLevel() <= level) {                                               \
       struct timeval current_time;                                           \
@@ -33,6 +32,6 @@ inline void SetLogLevel(int level) { LogLevel() = level; }
     }                                                                        \
   } while (0)
 
-#define logd(fmt, args...) _logf(kLogLevelDebug, fmt, ##args)
-#define logi(fmt, args...) _logf(kLogLevelInfom, fmt, ##args)
-#define loge(fmt, args...) _logf(kLogLevelError, fmt, ##args)
+#define logd(fmt, args...) log(kLogLevelDebug, fmt, ##args)
+#define logi(fmt, args...) log(kLogLevelInfom, fmt, ##args)
+#define loge(fmt, args...) log(kLogLevelError, fmt, ##args)
