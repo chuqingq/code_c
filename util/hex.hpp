@@ -21,7 +21,7 @@ static inline unsigned char hex2dec(unsigned char low) {
 }
 
 // hex编码
-void hex_encode(const uint8_t *bin, int binLen, char *hex, int hexLen) {
+inline void hex_encode(const uint8_t *bin, int binLen, char *hex, int hexLen) {
   if (hexLen < binLen * 2) {
     return;
   }
@@ -39,20 +39,20 @@ void hex_encode(const uint8_t *bin, int binLen, char *hex, int hexLen) {
 }
 
 // hex解码
-void hex_decode(const char *hex, uint8_t *bin, int binLen) {
+inline void hex_decode(const char *hex, uint8_t *bin, int binLen) {
   for (size_t i = 0; i + 1 < size_t(binLen * 2 + 1); i += 2) {
     bin[i / 2] = hex2dec(hex[i]) << 4 | hex2dec(hex[i + 1]);
   }
 }
 
 // 把bin内容编码成hex，并以'\0'结尾。
-void hexEncode(const std::vector<char> &src, std::vector<char> *dst) {
+inline void hexEncode(const std::vector<char> &src, std::vector<char> *dst) {
   dst->resize(src.size() * 2 + 1);
   hex_encode((uint8_t *)src.data(), src.size(), dst->data(), dst->size());
 }
 
 // 把hex内容解码成bin。
-void hexDecode(const std::vector<char> &src, std::vector<char> *dst) {
+inline void hexDecode(const std::vector<char> &src, std::vector<char> *dst) {
   dst->resize(src.size() / 2);
   hex_decode(src.data(), (uint8_t *)dst->data(), dst->size());
 }
