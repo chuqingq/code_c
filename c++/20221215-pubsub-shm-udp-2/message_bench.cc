@@ -53,29 +53,30 @@ int multi_thread_main() {
   const int port1 = 10001;
   const int port2 = 10002;
 
+  // thread1通过pub1通知thread2，thread2通过sub1接收；
+  // thread2再通过pub2通知thread1，thread1再通过sub2接收；
+  // 所以thread1持有pub1和sub2；thread2持有sub1和pub2
+  MessagePublisher pub11(topic1);
+  pub11.AddSub(ip, port1);
+  pub1 = &pub11;
+  MessageSubscriber sub22(topic2, ip, port2, RecvProc);
+  sub2 = &sub22;
+
+  uv_loop_t loop;
+  uv_loop_init(&loop);
+
+  MessagePublisher pub22(topic2, &loop);
+  pub22.AddSub(ip, port2);
+  pub2 = &pub22;
+
+  MessageSubscriber sub11(topic1, ip, port1, RecvProc, &loop);
+  sub1 = &sub11;
+
   std::jthread thread2([&] {
-    uv_loop_t loop;
-    uv_loop_init(&loop);
-
-    MessageSubscriber sub11(topic1, ip, port1, RecvProc, &loop);
-    sub1 = &sub11;
-
-    MessagePublisher pub22(topic2, &loop);
-    pub22.AddSub(ip, port2);
-    pub2 = &pub22;
-
     uv_run(&loop, UV_RUN_DEFAULT);
     int r = uv_loop_close(&loop);
     assert(r == 0);
   });
-
-  MessagePublisher pub11(topic1);
-  pub11.AddSub(ip, port1);
-  pub1 = &pub11;
-  MessageSubscriber sub22(topic2, ip, port2, RecvProc, uv_default_loop());
-  sub2 = &sub22;
-
-  usleep(200);  // TODO
 
   // 开始测试
   stopwatch.start();
@@ -88,7 +89,10 @@ int multi_thread_main() {
 }
 
 int main() {
-  multi_thread_main();
+  while (1) {
+    multi_thread_main();
+    std::cout << "====\n";
+  }
   return 0;
 }
 // StopWatch: total 3611242381 ns; average 36112 ns/loop.
