@@ -1,3 +1,5 @@
+#include "file.hpp"
+
 #include "catch.hpp"
 
 TEST_CASE("readFile + writeFile", "util_test") {
