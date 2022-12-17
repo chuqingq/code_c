@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 // 字符串操作
 inline std::string &replace_all(std::string &str, const std::string &old_value,
@@ -32,4 +33,15 @@ inline std::string capture(const std::string &str, const std::string &left,
   }
 
   return str.substr(lpos, rpos - lpos);
+}
+
+inline std::vector<std::string> split(const std::string &s, char delim) {
+  std::vector<std::string> elems;
+  std::stringstream ss(s);
+  std::string item;
+
+  while (std::getline(ss, item, delim)) {
+    elems.push_back(item);
+  }
+  return elems;
 }
