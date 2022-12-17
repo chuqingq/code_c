@@ -24,11 +24,11 @@ inline void SetLogLevel(int level) { LogLevel() = level; }
       struct tm local_tm;                                                    \
       gettimeofday(&current_time, 0);                                        \
       localtime_r(&current_time.tv_sec, &local_tm);                          \
-      printf("%04d-%02d-%02d %02d:%02d:%02d.%06ld [%d,%s:%d] " fmt "\n",     \
+      printf("%04d-%02d-%02d %02d:%02d:%02d.%06ld [%d %s:%d %s] " fmt "\n",  \
              local_tm.tm_year + 1900, local_tm.tm_mon + 1, local_tm.tm_mday, \
              local_tm.tm_hour, local_tm.tm_min, local_tm.tm_sec,             \
              (long)current_time.tv_usec, LogLevel(), __FILE__, __LINE__,     \
-             __func__, fmt, ##args);                                         \
+             __func__, ##args);                                              \
     }                                                                        \
   } while (0)
 
