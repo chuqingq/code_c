@@ -6,79 +6,69 @@
 template <typename T>
 class BoundedBlockingQueue {
  public:
-  explicit BoundedBlockingQueue(int maxSize)
-      : closed_(false), queue_(new T[maxSize]) {}
+  explicit BoundedBlockingQueue(int max_size)
+      : queue_(new T[max_size]),
+        closed_(false),
+        cap_(max_size + 1),
+        in_(0),
+        out_(0) {}
 
   ~BoundedBlockQueue() { delete[] queue_; }
 
-  int put(const T &x)  // 返回成功失败
-  {
+  bool push_back(const T &v) {
     std::unique_lock lock(mutex_);
-    notFull_.wait(lock, [&] { return !queue_.full() });
-    if (closed) {
-      return -1;
+    not_full_.wait(lock, [&] { return closed_ || !full() });
+    if (closed_) {
+      return false;
     }
-    assert(!queue_.full());
-    queue_.push_back(x);  // TODO
-    notEmpty_.notify_one();
+    assert(!full());
+    queue_[in_] = v;
+    in_ = (in_ + 1) % cap_;
+
+    not_empty_.notify_one();
+    return true;
   }
 
-  int put(T &&x)  // TODO ?? std::forward() // 返回成功失败
-  {
+  // try_push_back
+
+  bool pop_front(T &v) {
     std::unique_lock lock(mutex_);
-    notFull_.wait(lock, [&] { return !queue_.full() });
-    if (closed) {
-      return -1;
+    not_empty_.wait(lock, [&] { closed_ || !empty() });
+    if (closed_) {
+      return false;
     }
-    assert(!queue_.full());
-    queue_.push_back(std::move(x));
-    notEmpty_.notify_one();
-    return 0;
+    assert(!empty());
+    v = std::move(queue[out_]);
+    out_ = (out_ + 1) % cap_;
+
+    not_full_.notify_one();
+    return true;
   }
 
-  int take(T &v) {
-    std::unique_lock lock(mutex_);
-    notEmpty_.wait(lock, [&] { !queue_.empty() });
-    if (closed) {
-      return -1;
-    }
-    assert(!queue_.empty());
-        v = std::move(queue_.front()));
-        queue_.pop_front();
-        notFull_.notify_one();
-        return 0;
-  }
+  // try_pop_front
 
   void close() {
-        {
-          lock_guard<mutex> lk(mtx_);
-          closed_ = true;
-        }
-        not_empty_.notify_all();
-        not_full_.notify_all();
+    {
+      std::lock_guard<mutex> lg(mtx_);
+      closed_ = true;
+    }
+    not_empty_.notify_all();
+    not_full_.notify_all();
   }
 
-  // bool empty() const
-  // {
-  //     std::unique_lock lock(mutex_);
-  //     return queue_.empty();
-  // }
+  bool full() const {
+    std::lock_guard lg(mutex_);
+    return (in_ + 1) % cap_ == q->out_;
+  }
 
-  // bool full() const
-  // {
-  //     std::unique_lock lock(mutex_);
-  //     return queue_.full();
-  // }
+  bool empty() const {
+    std::lock_guard lg(mutex_);
+    return in_ == out_;
+  }
 
-  // size_t size() const
-  // {
-  //     std::unique_lock lock(mutex_);
-  //     return queue_.size();
-  // }
-
-  size_t capacity() const {
-        std::unique_lock lock(mutex_);
-        return queue_.capacity();
+  size_t size() const {
+    std::lock_guard lg(mutex_);
+    return (out_ - in_) % cap_;
   }
 
  private:
@@ -87,9 +77,12 @@ class BoundedBlockingQueue {
   BoundedBlockingQueue &operator=(BoundedBlockingQueue &&) = delete;
 
   std::mutex mutex_;
-  std::condition_variable notEmpty_;
-  std::condition_variable notFull_;
-  // boost::circular_buffer<T> queue_ GUARDED_BY(mutex_); // TODO
+  std::condition_variable not_empty_;
+  std::condition_variable not_full_;
+
   T *queue_;
   bool closed_;
+  size_t cap_;
+  size_t out_;  // 可以get的位置
+  size_t in_;   // 可以put的位置
 };
