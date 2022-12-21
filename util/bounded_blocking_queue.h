@@ -76,7 +76,7 @@ static inline int queue_put(queue_t *q, void *item) {
   return 0;
 }
 
-static void *queue_get(queue_t *q) {
+static inline void *queue_get(queue_t *q) {
   pthread_mutex_lock(&q->lock);
   while (1) {
     if (q->closed) {
