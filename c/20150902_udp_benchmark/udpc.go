@@ -38,7 +38,7 @@ func main() {
 				log.Fatalf("dialudp error: %v\n", err)
 			}
 
-			buf := make([]byte, 32)
+			buf := make([]byte, 64*1024-1)
 			start := time.Now()
 
 			for i := 0; i < *count; i++{
@@ -49,9 +49,11 @@ func main() {
 				}
 
 				if *recv {
-					_, err = conn.Read(buf)
+					n, err := conn.Read(buf)
 					if err != nil {
 						log.Printf("read error: %v\n", err)
+					} else if n != len(buf) {
+						log.Printf("read len error: %v\n", n)
 					}
 				}
 			}
