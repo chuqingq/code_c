@@ -9,3 +9,4 @@ util/bounded_blocking_queue
 c++/20221213-pubsub-shm-udp/message_bench
 util/bounded_blocking_queue_cpp_test
 util/stop_watch_test
+util/stop_watch_test_cpp
