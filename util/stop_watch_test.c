@@ -12,4 +12,5 @@ int main() {
 
 /*
 $ gcc -o stop_watch_test -Wall stop_watch_test.c
+$ ./stop_watch_test
 */
