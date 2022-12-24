@@ -1,5 +1,6 @@
 #include <atomic>
 #include <iostream>
+#include <memory>
 #include <utility>
 
 struct A {
@@ -19,13 +20,16 @@ int main() {
             << "std::atomic<B> is lock free? "
             << std::atomic<B>{}.is_lock_free() << '\n'
             << "std::atomic<C> is lock free? "
-            << std::atomic<C>{}.is_lock_free() << '\n';
+            << std::atomic<C>{}.is_lock_free() << '\n'
+            << "std::atomic<std::shared_ptr<int>> is lock free? "
+            << std::atomic<std::shared_ptr<int>>{}.is_lock_free() << '\n';
 }
 
 /*
-$ g++ test_atomic.cpp -latomic
-$ ./a.out
+$ g++ -o test_atomic test_atomic.cpp -std=c++20 -g -Wall -latomic
+$ ./test_atomic
 std::atomic<A> is lock free? false
 std::atomic<B> is lock free? true
 std::atomic<C> is lock free? false
+std::atomic<std::shared_ptr<int>> is lock free? false
 */
