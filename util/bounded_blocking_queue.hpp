@@ -17,7 +17,7 @@ class BoundedBlockingQueue {
   ~BoundedBlockingQueue() { delete[] data_; }
 
   bool push_back(const T &v) {
-    std::unique_lock lock(mutex_);
+    std::unique_lock<std::mutex> lock(mutex_);
     not_full_.wait(lock, [&] { return closed_ || !full(); });
     if (closed_) {
       return false;
@@ -33,7 +33,7 @@ class BoundedBlockingQueue {
   // TODO try_push_back
 
   bool pop_front(T &v) {
-    std::unique_lock lock(mutex_);
+    std::unique_lock<std::mutex> lock(mutex_);
     not_empty_.wait(lock, [&] { return closed_ || !empty(); });
     if (closed_) {
       return false;
@@ -50,7 +50,7 @@ class BoundedBlockingQueue {
 
   void close() {
     {
-      std::lock_guard lg(mutex_);
+      std::lock_guard<std::mutex> lg(mutex_);
       closed_ = true;
     }
     not_empty_.notify_all();
