@@ -2,6 +2,7 @@
 
 #include <uv.h>
 
+#include <chrono>
 #include <iostream>
 #include <thread>
 
@@ -13,20 +14,20 @@ int main() {
   // TODO 用例搞成跨进程、跨节点
 
   // 接收
-  auto callback = [&](const std::string &topic, const std::string &key,
-                      const Buffer &value) {
-    std::cout << "recv: " << topic << ": " << key << ": " << value.size_
-              << std::endl;
+  auto callback = [&](const std::string &topic, const uv_buf_t &value) {
+    std::cout << "recv: " << topic << ": " << value.len << std::endl;
     received = true;
     discover.Stop();
   };
   discover.Recv("topic", callback);
 
-  // 发送
-  char data[] = "hello";
-  Buffer buf{data, sizeof(data)};
-  discover.Send("topic", "key", buf);
-
+  std::thread thread2([&] {
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    // 发送
+    char data[] = "hello";
+    auto buf = uv_buf_init(data, sizeof(data));
+    discover.Send("topic", buf);
+  });
   uv_run(loop, UV_RUN_DEFAULT);
 
   if (!received) {
@@ -38,5 +39,5 @@ int main() {
 }
 
 /*
-$ g++ -o service_discover_test{,.cpp} -Wall
+$ g++ -o service_discover_test{,.cpp} -g -Wall -luv
 */
