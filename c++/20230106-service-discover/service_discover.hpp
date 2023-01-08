@@ -40,8 +40,9 @@ class ServiceDiscover {
 };
 
 inline void buf_alloc(uv_handle_t *tcp, size_t size, uv_buf_t *buf) {
-  buf->base = ((ServiceDiscover *)tcp->data)->buffer_;
-  buf->len = size;
+  auto discover = (ServiceDiscover *)tcp->data;
+  buf->base = discover->buffer_;
+  buf->len = sizeof(discover->buffer_);
 }
 
 inline void pinger_read_cb(uv_udp_t *udp, ssize_t nread, const uv_buf_t *buf,
@@ -57,7 +58,6 @@ inline void pinger_read_cb(uv_udp_t *udp, ssize_t nread, const uv_buf_t *buf,
   if (nread > 0) {
     // printf("read_cb: %ld %s\n", nread, buf->base);
     std::string topic(buf->base);
-
     auto b =
         uv_buf_init(buf->base + topic.size() + 1, buf->len - topic.size() - 1);
     std::lock_guard<std::mutex> lg(discover->mutex_);
@@ -123,7 +123,7 @@ void ServiceDiscover::Recv(const std::string &topic, RecvCallback callback) {
   callbacks_[topic].push_back(callback);
 }
 
-static void pinger_close_cb(uv_handle_t *handle) {}
+inline void pinger_close_cb(uv_handle_t *handle) {}
 
 void ServiceDiscover::Stop() {
   uv_close((uv_handle_t *)&udp_server_, pinger_close_cb);

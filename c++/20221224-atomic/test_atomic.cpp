@@ -20,9 +20,7 @@ int main() {
             << "std::atomic<B> is lock free? "
             << std::atomic<B>{}.is_lock_free() << '\n'
             << "std::atomic<C> is lock free? "
-            << std::atomic<C>{}.is_lock_free() << '\n'
-            << "std::atomic<std::shared_ptr<int>> is lock free? "
-            << std::atomic<std::shared_ptr<int>>{}.is_lock_free() << '\n';
+            << std::atomic<C>{}.is_lock_free() << '\n';
 }
 
 /*
