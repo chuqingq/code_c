@@ -11,7 +11,7 @@
 
 class ServiceDiscover {
  public:
-  // constructor
+  // constructors/destructors
   inline ServiceDiscover(uv_loop_t *loop);
 
   inline int Send(const std::string &topic, const uv_buf_t &value);
@@ -53,44 +53,33 @@ inline void pinger_read_cb(uv_udp_t *udp, ssize_t nread, const uv_buf_t *buf,
     return;
   }
   ServiceDiscover *discover = (ServiceDiscover *)udp->data;
-  /* No data here means something went wrong */
-  //   assert(nread > 0);
-  if (nread > 0) {
-    // TODO
-    printf("read_cb: %ld\n", nread);
-    // printf("read_cb: %lu\n", buf->len);
-    std::string topic("topic");
 
-    printf("1111\n");
+  if (nread > 0) {
+    // printf("read_cb: %ld %s\n", nread, buf->base);
+    std::string topic(buf->base);
+
+    auto b =
+        uv_buf_init(buf->base + topic.size() + 1, buf->len - topic.size() - 1);
     std::lock_guard<std::mutex> lg(discover->mutex_);
-    printf("2222\n");
-    printf("%ld\n", discover->callbacks_[topic].size());
     for (auto cb : discover->callbacks_[topic]) {
-      cb(topic, *buf);
+      cb(topic, b);
     }
   }
-
-  //   if (buf && !(flags & UV_UDP_MMSG_CHUNK)) buf_free(buf);  // TODO ?
 }
 
 ServiceDiscover::ServiceDiscover(uv_loop_t *loop) {
   int r = uv_udp_init(loop, &udp_);
-  if (r < 0) {
-    perror("uv_udp_init error");
-    throw;
-  }
+  assert(r == 0);
   udp_.data = this;
-  uv_udp_init(loop, &udpc_);
+  r = uv_udp_init(loop, &udpc_);
+  assert(r == 0);
   udpc_.data = this;
 
   struct sockaddr_in addr;
   uv_ip4_addr("0.0.0.0", kGroupcastPort, &addr);
 
   r = uv_ip4_addr(kGroupcastIp, kGroupcastPort, &groupcastaddr_);
-  if (r < 0) {
-    perror("uv_ip4_addr error");
-    throw;
-  }
+  assert(r == 0);
 
   r = uv_udp_bind(&udp_, (struct sockaddr *)&addr, UV_UDP_REUSEADDR);
   if (r < 0) {
@@ -111,12 +100,15 @@ ServiceDiscover::ServiceDiscover(uv_loop_t *loop) {
   }
 }
 
-// int ServiceDiscover::Send(const Buffer &b) {
-//   // TODO
-// }
-
 int ServiceDiscover::Send(const std::string &topic, const uv_buf_t &value) {
-  auto buf = uv_buf_init(value.base, value.len);
+  std::vector<char> b;
+  b.resize(value.len + topic.size() + 1);
+
+  std::copy(topic.begin(), topic.end(), b.begin());
+  b[topic.size()] = '\0';
+  std::copy(value.base, value.base + value.len, b.begin() + topic.size() + 1);
+
+  auto buf = uv_buf_init(&b[0], b.size());
   int r = uv_udp_try_send(&udpc_, &buf, 1,
                           (const struct sockaddr *)&groupcastaddr_);
   if (r < 0) {
@@ -128,9 +120,7 @@ int ServiceDiscover::Send(const std::string &topic, const uv_buf_t &value) {
 
 void ServiceDiscover::Recv(const std::string &topic, RecvCallback callback) {
   std::lock_guard<std::mutex> lg(mutex_);
-  // TODO
   callbacks_[topic].push_back(callback);
-  printf("%ld\n", callbacks_[topic].size());
 }
 
 static void pinger_close_cb(uv_handle_t *handle) {}

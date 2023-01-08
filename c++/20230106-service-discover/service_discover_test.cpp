@@ -1,5 +1,6 @@
 #include "service_discover.hpp"
 
+#include <string.h>
 #include <uv.h>
 
 #include <chrono>
@@ -8,33 +9,29 @@
 
 int main() {
   bool received = false;
+  const std::string kTopic = "topic111";
+  const char data[] = "hello";
   auto loop = uv_default_loop();
   ServiceDiscover discover(loop);
-  // TODO 是否要搞成单例
-  // TODO 用例搞成跨进程、跨节点
 
   // 接收
   auto callback = [&](const std::string &topic, const uv_buf_t &value) {
-    std::cout << "recv: " << topic << ": " << value.len << std::endl;
+    std::cout << "recv topic: " << topic << ": " << value.base << std::endl;
+    assert(0 == memcmp(data, value.base, sizeof(data)));
     received = true;
     discover.Stop();
   };
-  discover.Recv("topic", callback);
+  discover.Recv(kTopic, callback);
 
-  std::thread thread2([&] {
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-    // 发送
-    char data[] = "hello";
-    auto buf = uv_buf_init(data, sizeof(data));
-    discover.Send("topic", buf);
-  });
+  // 发送
+  ServiceDiscover discover2(loop);
+  auto buf = uv_buf_init((char *)data, sizeof(data));
+  discover2.Send(kTopic, buf);
+  discover2.Stop();
+
   uv_run(loop, UV_RUN_DEFAULT);
 
-  if (!received) {
-    std::cout << "assert error\n";
-    return -1;
-  }
-
+  assert(received);
   return 0;
 }
 
