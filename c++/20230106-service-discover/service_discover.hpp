@@ -25,8 +25,8 @@ class ServiceDiscover {
   const uint16_t kGroupcastPort = 8888;
 
   struct sockaddr_in groupcastaddr_;
-  uv_udp_t udp_;
-  uv_udp_t udpc_;
+  uv_udp_t udp_server_;
+  uv_udp_t udp_client_;
   char buffer_[1500];
 
   std::map<std::string, std::vector<RecvCallback>> callbacks_;
@@ -68,12 +68,12 @@ inline void pinger_read_cb(uv_udp_t *udp, ssize_t nread, const uv_buf_t *buf,
 }
 
 ServiceDiscover::ServiceDiscover(uv_loop_t *loop) {
-  int r = uv_udp_init(loop, &udp_);
+  int r = uv_udp_init(loop, &udp_server_);
   assert(r == 0);
-  udp_.data = this;
-  r = uv_udp_init(loop, &udpc_);
+  udp_server_.data = this;
+  r = uv_udp_init(loop, &udp_client_);
   assert(r == 0);
-  udpc_.data = this;
+  udp_client_.data = this;
 
   struct sockaddr_in addr;
   uv_ip4_addr("0.0.0.0", kGroupcastPort, &addr);
@@ -81,19 +81,19 @@ ServiceDiscover::ServiceDiscover(uv_loop_t *loop) {
   r = uv_ip4_addr(kGroupcastIp, kGroupcastPort, &groupcastaddr_);
   assert(r == 0);
 
-  r = uv_udp_bind(&udp_, (struct sockaddr *)&addr, UV_UDP_REUSEADDR);
+  r = uv_udp_bind(&udp_server_, (struct sockaddr *)&addr, UV_UDP_REUSEADDR);
   if (r < 0) {
     perror("uv_udp_bind error");
     throw;
   }
 
-  r = uv_udp_set_membership(&udp_, kGroupcastIp, NULL, UV_JOIN_GROUP);
+  r = uv_udp_set_membership(&udp_server_, kGroupcastIp, NULL, UV_JOIN_GROUP);
   if (r < 0) {
     perror("uv_udp_set_membership error");
     throw;
   }
 
-  r = uv_udp_recv_start(&udp_, buf_alloc, pinger_read_cb);
+  r = uv_udp_recv_start(&udp_server_, buf_alloc, pinger_read_cb);
   if (r < 0) {
     perror("uv_udp_recv_start error");
     throw;
@@ -109,7 +109,7 @@ int ServiceDiscover::Send(const std::string &topic, const uv_buf_t &value) {
   std::copy(value.base, value.base + value.len, b.begin() + topic.size() + 1);
 
   auto buf = uv_buf_init(&b[0], b.size());
-  int r = uv_udp_try_send(&udpc_, &buf, 1,
+  int r = uv_udp_try_send(&udp_client_, &buf, 1,
                           (const struct sockaddr *)&groupcastaddr_);
   if (r < 0) {
     perror("uv_udp_try_send error");
@@ -126,5 +126,5 @@ void ServiceDiscover::Recv(const std::string &topic, RecvCallback callback) {
 static void pinger_close_cb(uv_handle_t *handle) {}
 
 void ServiceDiscover::Stop() {
-  uv_close((uv_handle_t *)&udp_, pinger_close_cb);
+  uv_close((uv_handle_t *)&udp_server_, pinger_close_cb);
 }
