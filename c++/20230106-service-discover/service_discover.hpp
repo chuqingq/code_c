@@ -13,10 +13,11 @@ class ServiceDiscover {
  public:
   // constructors/destructors
   inline ServiceDiscover(uv_loop_t *loop);
+  ServiceDiscover() = delete;
 
-  inline int Send(const std::string &topic, const uv_buf_t &value);
+  inline int Send(const std::string &topic, const uv_buf_t &buf);
   using RecvCallback =
-      std::function<void(const std::string &topic, const uv_buf_t &value)>;
+      std::function<void(const std::string &topic, const uv_buf_t &buf)>;
   inline void Recv(const std::string &topic, RecvCallback callback);
   inline void Stop();
 
@@ -100,21 +101,21 @@ ServiceDiscover::ServiceDiscover(uv_loop_t *loop) {
   }
 }
 
-int ServiceDiscover::Send(const std::string &topic, const uv_buf_t &value) {
+int ServiceDiscover::Send(const std::string &topic, const uv_buf_t &buf) {
   std::vector<char> b;
-  b.resize(value.len + topic.size() + 1);
+  b.resize(buf.len + topic.size() + 1);
 
   std::copy(topic.begin(), topic.end(), b.begin());
   b[topic.size()] = '\0';
-  std::copy(value.base, value.base + value.len, b.begin() + topic.size() + 1);
+  std::copy(buf.base, buf.base + buf.len, b.begin() + topic.size() + 1);
 
-  auto buf = uv_buf_init(&b[0], b.size());
-  int r = uv_udp_try_send(&udp_client_, &buf, 1,
+  auto buffer = uv_buf_init(&b[0], b.size());
+  int r = uv_udp_try_send(&udp_client_, &buffer, 1,
                           (const struct sockaddr *)&groupcastaddr_);
   if (r < 0) {
     perror("uv_udp_try_send error");
   }
-  printf("try_send: %lu\n", buf.len);
+  //   printf("try_send: %lu\n", buffer.len);
   return r;
 }
 
