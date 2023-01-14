@@ -116,7 +116,7 @@ int ServiceDiscover::Send(const std::string &topic, const uv_buf_t &buf) {
   if (r < 0) {
     perror("uv_udp_try_send error");
   }
-  printf("try_send: %lu\n", buffer.len);
+  //   printf("try_send: %lu\n", buffer.len);
   return r;
 }
 

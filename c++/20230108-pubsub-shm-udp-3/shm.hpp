@@ -194,7 +194,7 @@ bool ShmBlock::Create() {
   }
 
   buffer_ = (char *)managed_shm_ + sizeof(State);
-  std::cout << "Create success\n";
+  //   std::cout << "Create success\n";
   return true;
 }
 
@@ -206,7 +206,7 @@ bool ShmBlock::Open() {
   // get managed_shm_
   int fd = shm_open(shm_name_.c_str(), O_RDWR, 0644);
   if (fd == -1) {
-    perror("shm_open error");
+    // AERROR << "shm_open error: " << strerror(errno) << std::endl;
     return false;
   }
 
@@ -238,7 +238,7 @@ bool ShmBlock::Open() {
   }
 
   buffer_ = (char *)managed_shm_ + sizeof(State);
-  std::cout << "Open success" << std::endl;
+  //   std::cout << "Open success" << std::endl;
   return true;
 }
 

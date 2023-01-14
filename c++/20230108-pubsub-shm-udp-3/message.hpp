@@ -62,17 +62,18 @@ MessagePublisher::MessagePublisher(const std::string &topic, uv_loop_t *loop)
   // discover
   auto discover_callback = [&](const std::string &topic,
                                const uv_buf_t &value) {
-    std::cout << "pub recv topic: " << topic << ": " << value.base << std::endl;
+    // std::cout << "pub recv topic: " << topic << ": " << value.base <<
+    // std::endl;
     struct sockaddr_in addr = *(struct sockaddr_in *)value.base;
     std::lock_guard<std::mutex> lg(this->subs_mutex_);
     subs_.push_back(addr);
-    printf("pub recv sub port: %d\n", ntohs(addr.sin_port));
+    // printf("pub recv sub port: %d\n", ntohs(addr.sin_port));
   };
   discover_.Recv("message/" + topic + "/sub", discover_callback);
   struct sockaddr_in addr;
   auto b = uv_buf_init((char *)&addr, sizeof(addr));
   discover_.Send("message/" + topic + "/pub", b);
-  printf("pub %s Send\n", topic.c_str());
+  //   printf("pub %s Send\n", topic.c_str());
 
   if (!shm_.Create()) {
     throw;
@@ -124,7 +125,7 @@ void MessagePublisher::Stop() {
   discover_.Stop();
   loop_ = nullptr;
   // shm_会自动析构
-  std::cout << (void *)this << " pub stop\n";
+  //   std::cout << (void *)this << " pub stop\n";
 }
 
 MessagePublisher::~MessagePublisher() {
@@ -231,21 +232,21 @@ MessageSubscriber::MessageSubscriber(const std::string &topic,
   // TODO 调试
   char buf[128];
   uv_ip4_name(&sockname, buf, sizeof(buf));
-  printf("sub addr: %s\n", buf);
-  printf("sub port: %d\n", ntohs(sockname.sin_port));
+  //   printf("sub addr: %s\n", buf);
+  //   printf("sub port: %d\n", ntohs(sockname.sin_port));
 
   auto b = uv_buf_init((char *)&sockname, sizeof(sockname));
   auto discover_callback = [&, sockname](const std::string &topic1,
                                          const uv_buf_t &value) {
-    std::cout << "sub recv topic: " << topic1 << ": " << value.base
-              << std::endl;
+    // std::cout << "sub recv topic: " << topic1 << ": " << value.base
+    //   << std::endl;
     auto b = uv_buf_init((char *)&sockname, sizeof(sockname));
     discover_.Send("message/" + topic + "/sub", b);
-    printf("sub %s Send\n", topic.c_str());
+    // printf("sub %s Send\n", topic.c_str());
   };
   discover_.Recv("message/" + topic + "/pub", discover_callback);
   discover_.Send("message/" + topic + "/sub", b);
-  printf("sub %s Send\n", topic.c_str());
+  //   printf("sub %s Send\n", topic.c_str());
 
   // 尝试打开共享内存
   shm_.Open();
@@ -257,5 +258,5 @@ void MessageSubscriber::Stop() {
 
   loop_ = nullptr;
   // shm_会自动析构
-  std::cout << "sub stop\n";
+  //   std::cout << "sub stop\n";
 }

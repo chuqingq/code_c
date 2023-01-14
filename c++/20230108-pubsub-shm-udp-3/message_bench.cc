@@ -6,8 +6,8 @@
 #include "message.hpp"
 #include "stop_watch.hpp"
 
-// const uint64_t COUNT = 100000;
-const uint64_t COUNT = 2;
+const uint64_t COUNT = 100000;
+// const uint64_t COUNT = 2;
 
 static StopWatch stopwatch;
 
@@ -28,8 +28,10 @@ void RecvProc(MessageSubscriber *sub, const Buffer &buf) {
   uint64_t i = *(uint64_t *)buf.data_;  // TODO 转换
   //   std::cout << "RecvProc: " << i << std::endl;
   if (i > COUNT) {
-    std::cout << (void *)sub << " sub stopping\n";
-    stopwatch.print(COUNT);
+    // std::cout << (void *)sub << " sub stopping\n";
+    if (sub == sub2) {
+      stopwatch.print(COUNT);
+    }
     sub->Stop();
     // 本sub停掉后，继续发送，确保另一个线程的sub和pub可以停掉。
   }
@@ -73,8 +75,9 @@ int multi_thread_main() {
     assert(r == 0);
   });
 
+  std::cout << "## 1111\n";
+
   uv_run(uv_default_loop(), UV_RUN_NOWAIT);
-  printf("start,....\n");
 
   // 开始测试
   stopwatch.start();
@@ -93,4 +96,4 @@ int main() {
   }
   return 0;
 }
-// StopWatch: total 3611242381 ns; average 36112 ns/loop.
+// StopWatch: total 3672980834 ns; average 36729 ns/loop.
