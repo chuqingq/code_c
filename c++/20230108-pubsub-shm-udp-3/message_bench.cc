@@ -69,13 +69,11 @@ int multi_thread_main() {
   MessageSubscriber sub11(topic1, RecvProc, &loop);
   sub1 = &sub11;
 
-  std::jthread thread2([&] {
+  std::thread thread2([&] {
     uv_run(&loop, UV_RUN_DEFAULT);
     int r = uv_loop_close(&loop);
     assert(r == 0);
   });
-
-  std::cout << "## 1111\n";
 
   uv_run(uv_default_loop(), UV_RUN_NOWAIT);
 
@@ -86,6 +84,7 @@ int multi_thread_main() {
   std::cout << "## main thread after Send(1)\n";
 
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+  thread2.join();
   return 0;
 }
 
