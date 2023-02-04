@@ -86,8 +86,8 @@ int main(void)
 }
  
 /*
-gcc sched_fifo.c -pthread
-sudo taskset -c 0 ./a.out
+gcc -static -o test_sched sched_fifo_timer_ns_final.c -pthread
+sudo taskset -c 0 ./test_sched
 
 结论：
 1.在没有实时线程的情况下，代码写好（可以先usleep降低cpu，然后提前醒来进行自选），可以控制到每1ms触发一次，误差是ns以内。
