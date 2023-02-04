@@ -19,6 +19,10 @@ static unsigned long long nstime(void) {
     return ((unsigned long long)ts.tv_sec)*1e9 + ts.tv_nsec;                    
 }
 
+void nspause() {
+        __asm__ __volatile__("pause;");
+}
+
 pthread_t createSchedFifoThread(void* (*pThreadFunc)(void*), int priority) {
     struct sched_param param;
     int policy;
@@ -71,7 +75,7 @@ void* thread1(void* arg) {
         //     printf("target <= now: %lld\n", now - target);
         // }
         while ((d = (target-80*1e3-nstime())) > 0) usleep(d/1e3); // pause?
-        while (nstime() < target) ; // pause?
+        while (nstime() < target) nspause(); // pause?
     }
 }
 
@@ -90,9 +94,13 @@ gcc -static -o test_sched sched_fifo_timer_ns_final.c -pthread
 sudo taskset -c 0 ./test_sched
 
 结论：
-1.在没有实时线程的情况下，代码写好（可以先usleep降低cpu，然后提前醒来进行自选），可以控制到每1ms触发一次，误差是ns以内。
-2.用select和usleep、nanosleep精度差不多。说是select对于信号、中断等更安全
-3.没有验证高负载情况。猜测高负载下精度应该会受影响，可以通过上实时线程来解决。
+1.using sudo ./test_sched (with fifo sched), jitter is less than 1ns. CPU usage is about 5% in one core(top).
+(with 'stress -c 10', total cpu 100%,  same result)
+2.在没有实时线程的情况下，代码写好（可以先usleep降低cpu，然后提前醒来进行自选），可以控制到每1ms触发一次，误差是100ns以内。
+(with 'stress -c 10', jitter is less than 1ns....???)
+3.用select和usleep、nanosleep精度差不多。说是select对于信号、中断等更安全
+4.没有验证高负载情况。猜测高负载下精度应该会受影响，可以通过上实时线程来解决。
+5.pause no effect, still 5% cpu usage.
 
 结果：
 chuqq@chuqq-r7000p/m/d/t/p/c/c/20200527_sched_fifo $ sudo taskset -c 0 ./a.out
