@@ -55,7 +55,7 @@ class CanSocket {
 
   int Send(const struct canfd_frame *frame) {
     int ret = write(can_sock_, frame, CAN_MTU);
-    if (ret != sizeof(*frame)) {
+    if (ret != CAN_MTU) {
       perror("write");
     }
     return ret;
@@ -63,7 +63,7 @@ class CanSocket {
 
   int Receive(struct canfd_frame *frame) {
     int ret = read(can_sock_, frame, CAN_MTU);
-    if (ret != sizeof(*frame)) {
+    if (ret != CAN_MTU) {
       perror("read");
     }
     return ret;
