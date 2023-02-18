@@ -6,13 +6,13 @@
 
 typedef struct {
   size_t size;
-  size_t out;  // 可以get的位置
-  size_t in;   // 可以put的位置
+  size_t out; // 可以get的位置
+  size_t in;  // 可以put的位置
   int closed;
   void **data;
   pthread_mutex_t lock;
-  pthread_cond_t not_empty;  // 变为不空
-  pthread_cond_t not_full;   // 变为不满
+  pthread_cond_t not_empty; // 变为不空
+  pthread_cond_t not_full;  // 变为不满
 } queue_t;
 
 static inline int queue_init(queue_t *q, size_t size) {
@@ -20,7 +20,7 @@ static inline int queue_init(queue_t *q, size_t size) {
     return -1;
   }
 
-  q->size = size + 1;  // 多留一个空位用于区分full和empty
+  q->size = size + 1; // 多留一个空位用于区分full和empty
   q->out = 0;
   q->in = 0;
   q->closed = 0;

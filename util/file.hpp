@@ -23,8 +23,8 @@ inline int fileExists(std::string const &file) {
 
 inline int readFile(const std::string &file, std::vector<char> *data) {
   std::ifstream ifs(file, std::ios::binary);
-  if (!ifs)  // 比如没有权限
-  {
+  // 比如没有权限
+  if (!ifs) {
     return -1;
   }
   // data->assign((std::istreambuf_iterator<char>(ifs)),
@@ -43,8 +43,8 @@ inline int readFile(const std::string &file, std::vector<char> *data) {
 inline int writeFile(const std::string &file,
                      const std::vector<char> &content) {
   std::ofstream ofs(file, std::ios::binary);
-  if (!ofs)  // 比如没有权限
-  {
+  // 比如没有权限
+  if (!ofs) {
     return -1;
   }
   ofs.write(content.data(), content.size());

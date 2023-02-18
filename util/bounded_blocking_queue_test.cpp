@@ -5,7 +5,7 @@
 #include <thread>
 
 int main() {
-  const int loops = 1000000;  // 10000000;
+  const int loops = 1000000; // 10000000;
   queue_t q1, q2;
   queue_init(&q1, 2);
   queue_init(&q2, 2);
