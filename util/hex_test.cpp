@@ -48,6 +48,6 @@ int main() {
 }
 
 /*
-g++ -o hex_test{,.cpp}
-./hex_test
+$ g++ -o hex_test{,.cpp}
+$ ./hex_test
 */
