@@ -1,19 +1,22 @@
 #include "hex.hpp"
 
-#include "catch.hpp"
+#include <cstring>
+#undef NDEBUG
+#include <cassert>
 
 static void hexCodecTest(std::vector<char> const &d,
                          std::vector<char> const &h) {
   std::vector<char> t;
 
   hexEncode(d, &t);
-  REQUIRE(t == h);
+  assert(t == h);
 
   hexDecode(h, &t);
-  REQUIRE(t == d);
+  assert(t == d);
 }
 
-TEST_CASE("hexEncode + hexDecode", "util_test") {
+// "hexEncode + hexDecode", "util_test"
+void test1() {
   std::vector<char> d{1, 18, 10, 27, -1};
   std::vector<char> h{'0', '1', '1', '2', '0', 'A', '1', 'B', 'F', 'F', '\0'};
   hexCodecTest(d, h);
@@ -23,7 +26,8 @@ TEST_CASE("hexEncode + hexDecode", "util_test") {
   hexCodecTest(d1, h1);
 }
 
-TEST_CASE("hex_encode + hex_decode", "util_test") {
+// "hex_encode + hex_decode", "util_test"
+void test2() {
   uint8_t src[]{1, 18, 10, 27, 255};
   char dst[]{'0', '1', '1', '2', '0', 'A', '1', 'B', 'F', 'F', '\0'};
 
@@ -31,8 +35,19 @@ TEST_CASE("hex_encode + hex_decode", "util_test") {
   char dst2[sizeof(dst)];
 
   hex_encode(src, sizeof(src), dst2, sizeof(dst2));
-  REQUIRE(memcmp(dst, dst2, sizeof(dst)) == 0);
+  assert(memcmp(dst, dst2, sizeof(dst)) == 0);
 
   hex_decode(dst, src2, sizeof(src2));
-  REQUIRE(memcmp(src, src2, sizeof(src)) == 0);
+  assert(memcmp(src, src2, sizeof(src)) == 0);
 }
+
+int main() {
+  test1();
+  test2();
+  return 0;
+}
+
+/*
+g++ -o hex_test{,.cpp}
+./hex_test
+*/
