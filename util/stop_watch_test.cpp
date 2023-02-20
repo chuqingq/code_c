@@ -10,6 +10,6 @@ int main() {
 }
 
 /*
-$ g++ -o stop_watch_test_cpp -Wall stop_watch_test.cpp
+$ g++ -o {stop_watch_test_cpp,.cpp} -Wall
 $ ./stop_watch_test_cpp
 */

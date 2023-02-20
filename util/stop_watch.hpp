@@ -4,7 +4,7 @@
 #include <iostream>
 
 class StopWatch {
- public:
+public:
   StopWatch() { start(); }
 
   void start() { start_ = std::chrono::steady_clock::now(); }
@@ -18,6 +18,6 @@ class StopWatch {
               << " ns/loop.\n";
   }
 
- private:
+private:
   std::chrono::time_point<std::chrono::steady_clock> start_;
 };

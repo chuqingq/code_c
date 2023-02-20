@@ -4,14 +4,10 @@
 #include <condition_variable>
 #include <mutex>
 
-template <typename T>
-class BoundedBlockingQueue {
- public:
+template <typename T> class BoundedBlockingQueue {
+public:
   explicit BoundedBlockingQueue(int max_elems)
-      : data_(new T[max_elems]),
-        capacity_(max_elems + 1),
-        in_(0),
-        out_(0),
+      : data_(new T[max_elems]), capacity_(max_elems + 1), in_(0), out_(0),
         closed_(false) {}
 
   ~BoundedBlockingQueue() { delete[] data_; }
@@ -59,7 +55,7 @@ class BoundedBlockingQueue {
 
   // TODO size_t size() const
 
- private:
+private:
   BoundedBlockingQueue(const BoundedBlockingQueue &) = delete;
   BoundedBlockingQueue &operator=(const BoundedBlockingQueue &) = delete;
   BoundedBlockingQueue &operator=(BoundedBlockingQueue &&) = delete;
@@ -74,7 +70,7 @@ class BoundedBlockingQueue {
 
   T *data_;
   size_t capacity_;
-  size_t in_;   // 可以put的位置
-  size_t out_;  // 可以get的位置
+  size_t in_;  // 可以put的位置
+  size_t out_; // 可以get的位置
   bool closed_;
 };

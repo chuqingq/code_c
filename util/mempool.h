@@ -3,6 +3,9 @@
 #ifndef __MPP_MEM_POOL_H__
 #define __MPP_MEM_POOL_H__
 
+#include <list>
+#include <mutex>
+
 typedef struct {
   int max_block_num;
   int block_size;

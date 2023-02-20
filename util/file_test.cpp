@@ -1,19 +1,25 @@
 #include "file.hpp"
 
-#include "catch.hpp"
+#include <stdio.h>
+#undef NDEBUG
+#include <cassert>
 
-TEST_CASE("readFile + writeFile", "util_test") {
+// "readFile + writeFile", "util_test"
+int main() {
   const std::string file("util.test");
   const std::vector<char> content{'1', '2', '3', '4'};
 
-  REQUIRE(writeFile(file, content) == 0);
+  // write file
+  assert(writeFile(file, content) == 0);
 
+  // read file
   std::vector<char> res;
-  REQUIRE(readFile(file, &res) == 0);
+  assert(readFile(file, &res) == 0);
+  assert(content == res);
 
-  REQUIRE(content == res);
+  // delete file
+  assert(deleteFile(file) == 0);
+  assert(!fileExists(file));
 
-  // 删除文件
-  REQUIRE(deleteFile(file) == 0);
-  REQUIRE(!fileExists(file));
+  return 0;
 }
