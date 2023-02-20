@@ -50,7 +50,12 @@ class CanSocket {
     can_sock_ = s;
     return 0;
   }
-  void Close() { close(can_sock_); }
+  void Close() {
+    if (can_sock_ != 0) {
+        close(can_sock_);
+        can_sock_ = 0;
+    }
+  }
   ~CanSocket() { Close(); }
 
   int Send(const struct canfd_frame *frame) {
