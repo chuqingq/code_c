@@ -1,5 +1,4 @@
-#ifndef STOP_WATCH_H
-#define STOP_WATCH_H
+#pragma once
 
 #include <stddef.h>
 #include <stdint.h>
@@ -32,5 +31,3 @@ static inline uint64_t ustime(void) {
   gettimeofday(&tv, NULL);
   return (uint64_t)((uint64_t)tv.tv_sec) * 1e6 + tv.tv_usec;
 }
-
-#endif
