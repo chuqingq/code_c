@@ -7,6 +7,7 @@
 const int kLogLevelStart = 0;
 const int kLogLevelDebug = 2;
 const int kLogLevelInfom = 4;
+const int kLogLevelWarni = 5;
 const int kLogLevelError = 6;
 const int kLogLevelDisab = 9;
 
@@ -46,4 +47,5 @@ inline void SetLogLevel(int level) { LogLevel() = level; }
 
 #define logd(fmt, args...) log(kLogLevelDebug, fmt, ##args)
 #define logi(fmt, args...) log(kLogLevelInfom, fmt, ##args)
+#define logw(fmt, args...) log(kLogLevelWarni, fmt, ##args)
 #define loge(fmt, args...) log(kLogLevelError, fmt, ##args)
