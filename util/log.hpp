@@ -22,6 +22,8 @@ inline const char *LogLevelString() {
     return "DEBUG";
   case 4:
     return " INFO";
+  case 5:
+    return " WARN";
   case 6:
     return "ERROR";
   default:
