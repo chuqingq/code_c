@@ -2,7 +2,7 @@
 
 #include <sstream>
 
-#include "json/json.h"
+#include "nlohmann_json.hpp"
 
 inline void jsonToString(const Json::Value &json, std::string *res) {
   Json::StreamWriterBuilder builder;
