@@ -15,5 +15,5 @@ int main() {
   return 0;
 }
 /*
-$ gcc -o log_test{,.cpp} -Wall
+$ g++ -o log_test{,.cpp} -Wall
 */
