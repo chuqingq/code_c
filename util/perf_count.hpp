@@ -7,22 +7,21 @@
 
 class PerfCount {
 public:
-  PerfCount() : loops_(0), stop_(false) {
+  PerfCount() : loops_(0) {
     start_ = std::chrono::steady_clock::now();
     std::thread t([this]() {
-      while (!stop_) {
+      while (1) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
         this->print();
-        loops_.store(0);
       }
     });
     thread_ = std::move(t);
   }
 
   void stop() {
-    if (!stop_) {
-
-      stop_ = true;
+    if (thread_.joinable()) {
+      pthread_cancel(thread_.native_handle());
+      print();
       thread_.join();
     }
   }
@@ -33,18 +32,20 @@ public:
 
 private:
   void print() {
+    auto loops = loops_.load();
+    loops_.fetch_add(-loops);
+
     auto stop = std::chrono::steady_clock::now();
     auto ns =
         std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start_)
             .count();
-    std::cout << "PerfCount: total " << ns << " ns; average " << ns / loops_
-              << " ns/loop.\n";
+    std::cout << "PerfCount: total " << ns << " ns; loops: " << loops
+              << "; average " << ns / loops << " ns/loop.\n";
     start_ = stop;
     // start_ = std::chrono::steady_clock::now();
   }
 
   std::chrono::time_point<std::chrono::steady_clock> start_;
   std::atomic<uint64_t> loops_;
-  bool stop_;
   std::thread thread_;
 };

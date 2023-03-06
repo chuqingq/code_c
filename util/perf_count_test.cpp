@@ -7,13 +7,16 @@ int main() {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
         p.increase();
     }
+    std::cout << "stop\n";
+    p.stop();
     return 0;
 }
 /*
 $ g++ -o perf_count_test{,.cpp} -g -Wall
 $ ./perf_count_test
-PerfCount: total 1000175597 ns; average 1093088 ns/loop.
-PerfCount: total 1000342916 ns; average 1093270 ns/loop.
-PerfCount: total 1000148143 ns; average 1093058 ns/loop.
-PerfCount: total 1000165898 ns; average 3922219 ns/loop.
+PerfCount: total 1000226685 ns; loops: 913; average 1095538 ns/loop.
+PerfCount: total 1000227148 ns; loops: 916; average 1091951 ns/loop.
+PerfCount: total 1000150189 ns; loops: 913; average 1095454 ns/loop.
+stop
+PerfCount: total 281789175 ns; loops: 258; average 1092206 ns/loop.
 */
