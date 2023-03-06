@@ -11,3 +11,4 @@ util/bounded_blocking_queue_cpp_test
 util/stop_watch_test
 util/stop_watch_test_cpp
 util/log_test
+util/perf_count_test
