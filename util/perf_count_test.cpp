@@ -5,10 +5,10 @@ int main() {
     PerfCount p;
     for (int i = 0; i < 3000; i++) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        p.increase();
+        p.Incr();
     }
     std::cout << "stop\n";
-    p.stop();
+    p.Stop();
     return 0;
 }
 /*
