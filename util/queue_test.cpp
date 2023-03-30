@@ -8,10 +8,12 @@ int main() {
 
   std::thread th([&]() {
     // 确保队列为空并且队列关闭时才退出
-    while (!q.empty() || !q.closed()) {
-      sleep(1);
-      auto v = q.pull_front();
-      std::cout << "recv " << v << std::endl;
+    while (!q.closed()) {
+      while (!q.empty()) {
+        sleep(1);
+        auto v = q.pull_front();
+        std::cout << "recv " << v << std::endl;
+      }
     }
   });
 
