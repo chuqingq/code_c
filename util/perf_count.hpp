@@ -12,26 +12,26 @@ public:
     std::thread t([this]() {
       while (1) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
-        this->print();
+        this->Print();
       }
     });
     thread_ = std::move(t);
   }
 
-  void stop() {
+  void Stop() {
     if (thread_.joinable()) {
       pthread_cancel(thread_.native_handle());
-      print();
+      Print();
       thread_.join();
     }
   }
 
-  ~PerfCount() { stop(); }
+  ~PerfCount() { Stop(); }
 
-  void increase(uint64_t loops = 1) { loops_.fetch_add(loops); }
+  void Incr(uint64_t loops = 1) { loops_.fetch_add(loops); }
 
 private:
-  void print() {
+  void Print() {
     auto loops = loops_.load();
     loops_.fetch_add(-loops);
 
