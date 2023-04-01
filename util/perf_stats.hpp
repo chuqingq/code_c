@@ -39,7 +39,7 @@ private:
     auto ns =
         std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start_)
             .count();
-    std::cout << "PerfCount[" << std::string(name_) << "]: total " << ns
+    std::cout << "PerfStats[" << std::string(name_) << "]: total " << ns
               << " ns; loops: " << loops << "; average " << ns / loops
               << " ns/loop.\n";
     start_ = stop;
