@@ -17,7 +17,7 @@ int main() {
 }
 /*
 $ g++ string_view.cpp -Wall -std=c++17
-²»¸æ¾¯¡£
+ä¸å‘Šè­¦ã€‚
 
 $ clang++ string_view.cpp -Wall -std=c++17
 string_view.cpp:9:26: warning: object backing the pointer will be destroyed at the end of the full-expression [-Wdangling-gsl]
@@ -32,5 +32,5 @@ sv1: 0x7ffe3abdfda0
 sv2: 0x7ffe3abdfda6
 sv3: 0x7ffe3abdfdc0
 
-sv3ÒÀÀµµÄstring£¬Ó¦¸ÃÒÑ¾­Ê§Ğ§ÁË¡£
+sv3ä¾èµ–çš„stringï¼Œåº”è¯¥å·²ç»å¤±æ•ˆäº†ã€‚
 */
