@@ -5,9 +5,9 @@
 #include <iostream>
 #include <thread>
 
-class PerfCount {
+class PerfStats {
 public:
-  PerfCount() : loops_(0) {
+  PerfStats(const char *name = "unknown") : name_(name), loops_(0) {
     start_ = std::chrono::steady_clock::now();
     std::thread t([this]() {
       while (1) {
@@ -26,7 +26,7 @@ public:
     }
   }
 
-  ~PerfCount() { Stop(); }
+  ~PerfStats() { Stop(); }
 
   void Incr(uint64_t loops = 1) { loops_.fetch_add(loops); }
 
@@ -39,12 +39,14 @@ private:
     auto ns =
         std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start_)
             .count();
-    std::cout << "PerfCount: total " << ns << " ns; loops: " << loops
-              << "; average " << ns / loops << " ns/loop.\n";
+    std::cout << "PerfStats[" << std::string(name_) << "]: total " << ns
+              << " ns; loops: " << loops << "; average " << ns / loops
+              << " ns/loop.\n";
     start_ = stop;
     // start_ = std::chrono::steady_clock::now();
   }
 
+  const char *name_;
   std::chrono::time_point<std::chrono::steady_clock> start_;
   std::atomic<uint64_t> loops_;
   std::thread thread_;
